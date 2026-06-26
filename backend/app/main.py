@@ -18,7 +18,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localho
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
-app = FastAPI(title="Royal Thai Touch ERP", version="0.8.6")
+app = FastAPI(title="Royal Thai Touch ERP", version="0.8.8")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 class Branch(Base):
@@ -100,6 +100,14 @@ def seed_data(db: Session) -> None:
 def create_audit(db: Session, action: str, entity: str, details: str = "") -> None:
     db.add(AuditLog(action=action, entity=entity, details=details))
 
+def normalize_report_mode(report_mode: str, include_expenses: Optional[bool]) -> str:
+    allowed = {"full", "revenue_profit", "revenue_only"}
+    if report_mode not in allowed:
+        report_mode = "full"
+    if include_expenses is False and report_mode == "full":
+        report_mode = "revenue_profit"
+    return report_mode
+
 def active_branches(db: Session, branch_id: Optional[int] = None):
     q = db.query(Branch).filter(Branch.active == True)
     if branch_id:
@@ -119,7 +127,8 @@ def branch_summary(db: Session, target_date: date, branch_id: Optional[int] = No
         rows.append({"branch_id": branch.id, "branch": branch.name, "revenue": revenue_amount, "expenses": total_expenses, "net_profit": revenue_amount - total_expenses, "status": "Closed" if rev and rev.closed else ("Submitted" if rev else "Missing"), "expense_count": len(branch_expenses)})
     return rows
 
-def report_data(db: Session, date_from: date, date_to: date, branch_id: Optional[int] = None, include_expenses: bool = True):
+def report_data(db: Session, date_from: date, date_to: date, branch_id: Optional[int] = None, report_mode: str = "full"):
+    include_expenses = report_mode == "full"
     current = date_from
     daily_rows = []
     branch_totals = {}
@@ -142,7 +151,17 @@ def report_data(db: Session, date_from: date, date_to: date, branch_id: Optional
     if branch_id:
         branch = db.query(Branch).filter(Branch.id == branch_id).first()
         branch_name = branch.name if branch else f"Branch {branch_id}"
-    return {"date_from": str(date_from), "date_to": str(date_to), "branch_id": branch_id, "branch_name": branch_name, "include_expenses": include_expenses, "total_revenue": total_revenue, "total_expenses": total_expenses, "net_profit": total_revenue - total_expenses, "daily_rows": daily_rows, "branch_totals": list(branch_totals.values())}
+    return {"date_from": str(date_from), "date_to": str(date_to), "branch_id": branch_id, "branch_name": branch_name, "report_mode": report_mode, "include_expenses": include_expenses, "total_revenue": total_revenue, "total_expenses": total_expenses, "net_profit": total_revenue - total_expenses, "daily_rows": daily_rows, "branch_totals": list(branch_totals.values())}
+
+def report_columns(report_mode: str):
+    if report_mode == "revenue_only":
+        return ["Date", "Revenue"]
+    if report_mode == "revenue_profit":
+        return ["Date", "Revenue", "Net Profit"]
+    return ["Date", "Revenue", "Expenses", "Net Profit"]
+
+def report_mode_label(report_mode: str):
+    return {"full": "Full financial report", "revenue_profit": "Revenue and profit only", "revenue_only": "Revenue only"}.get(report_mode, "Full financial report")
 
 @app.on_event("startup")
 def startup():
@@ -155,11 +174,11 @@ def startup():
 
 @app.get("/")
 def root():
-    return {"application": "Royal Thai Touch ERP", "status": "running", "version": "0.8.6"}
+    return {"application": "Royal Thai Touch ERP", "status": "running", "version": "0.8.8"}
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "app": "Royal Thai Touch ERP", "version": "0.8.6"}
+    return {"status": "healthy", "app": "Royal Thai Touch ERP", "version": "0.8.8"}
 
 @app.get("/branches")
 def get_branches(db: Session = Depends(get_db)):
@@ -248,25 +267,27 @@ def close_day(branch_id: int, business_date: date, db: Session = Depends(get_db)
     return {"status": "closed"}
 
 @app.get("/reports/summary")
-def report_summary(date_from: date, date_to: date, branch_id: Optional[int] = None, include_expenses: bool = True, db: Session = Depends(get_db)):
-    return report_data(db, date_from, date_to, branch_id, include_expenses)
+def report_summary(date_from: date, date_to: date, branch_id: Optional[int] = None, include_expenses: Optional[bool] = None, report_mode: str = "full", db: Session = Depends(get_db)):
+    mode = normalize_report_mode(report_mode, include_expenses)
+    return report_data(db, date_from, date_to, branch_id, mode)
 
 @app.get("/reports/excel")
-def export_excel(date_from: date, date_to: date, branch_id: Optional[int] = None, include_expenses: bool = True, db: Session = Depends(get_db)):
-    data = report_data(db, date_from, date_to, branch_id, include_expenses)
+def export_excel(date_from: date, date_to: date, branch_id: Optional[int] = None, include_expenses: Optional[bool] = None, report_mode: str = "full", db: Session = Depends(get_db)):
+    mode = normalize_report_mode(report_mode, include_expenses)
+    data = report_data(db, date_from, date_to, branch_id, mode)
     wb = Workbook()
     ws = wb.active
     ws.title = "Financial Report"
     gold, black, white = "D4AF37", "111111", "FFFFFF"
-    ws.merge_cells("A1:E1")
+    ws.merge_cells("A1:D1")
     ws["A1"] = "Royal Thai Touch ERP - Financial Report"
     ws["A1"].font = Font(bold=True, size=16, color=gold)
     ws["A1"].alignment = Alignment(horizontal="center")
     ws["A1"].fill = PatternFill("solid", fgColor=black)
-    ws.merge_cells("A2:E2")
-    ws["A2"] = f"Branch: {data['branch_name']} | Period: {date_from} to {date_to} | Expenses: {'Included' if include_expenses else 'Excluded'}"
+    ws.merge_cells("A2:D2")
+    ws["A2"] = f"Branch: {data['branch_name']} | Period: {date_from} to {date_to} | Mode: {report_mode_label(mode)}"
     ws["A2"].alignment = Alignment(horizontal="center")
-    headers = ["Date", "Revenue"] + (["Expenses"] if include_expenses else []) + ["Net Profit"]
+    headers = report_columns(mode)
     ws.append([])
     ws.append(headers)
     for cell in ws[4]:
@@ -275,50 +296,54 @@ def export_excel(date_from: date, date_to: date, branch_id: Optional[int] = None
         cell.border = Border(bottom=Side(style="thin", color="999999"))
     for row in data["daily_rows"]:
         values = [row["date"], row["revenue"]]
-        if include_expenses:
+        if mode == "full":
             values.append(row["expenses"])
-        values.append(row["net_profit"])
+        if mode != "revenue_only":
+            values.append(row["net_profit"])
         ws.append(values)
     last_row = ws.max_row + 2
     ws[f"A{last_row}"] = "TOTAL"
     ws[f"B{last_row}"] = data["total_revenue"]
-    col_profit = "D" if include_expenses else "C"
-    if include_expenses:
+    if mode == "full":
         ws[f"C{last_row}"] = data["total_expenses"]
-    ws[f"{col_profit}{last_row}"] = data["net_profit"]
+        ws[f"D{last_row}"] = data["net_profit"]
+    elif mode == "revenue_profit":
+        ws[f"C{last_row}"] = data["net_profit"]
     for cell in ws[last_row]:
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="F4E4A6")
-    for col in ["A", "B", "C", "D", "E"]:
-        ws.column_dimensions[col].width = 24
+    for col in ["A", "B", "C", "D"]:
+        ws.column_dimensions[col].width = 26
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
-    suffix = "with-expenses" if include_expenses else "revenue-profit-only"
-    filename = f"royal-thai-touch-{data['branch_name'].replace(' ', '-')}-{date_from}-to-{date_to}-{suffix}.xlsx"
+    filename = f"royal-thai-touch-{data['branch_name'].replace(' ', '-')}-{date_from}-to-{date_to}-{mode}.xlsx"
     return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 @app.get("/reports/pdf")
-def export_pdf(date_from: date, date_to: date, branch_id: Optional[int] = None, include_expenses: bool = True, db: Session = Depends(get_db)):
+def export_pdf(date_from: date, date_to: date, branch_id: Optional[int] = None, include_expenses: Optional[bool] = None, report_mode: str = "full", db: Session = Depends(get_db)):
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-    data = report_data(db, date_from, date_to, branch_id, include_expenses)
+    mode = normalize_report_mode(report_mode, include_expenses)
+    data = report_data(db, date_from, date_to, branch_id, mode)
     output = io.BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=28, leftMargin=28, topMargin=28, bottomMargin=28)
     styles = getSampleStyleSheet()
-    story = [Paragraph("Royal Thai Touch ERP", styles["Title"]), Paragraph(f"Monthly Report - {data['branch_name']}", styles["Heading2"]), Paragraph(f"Period: {date_from} to {date_to}", styles["Normal"]), Paragraph(f"Expenses: {'Included' if include_expenses else 'Excluded - Revenue and profit only'}", styles["Normal"]), Spacer(1, 12), Paragraph(f"Total Revenue: IQD {data['total_revenue']:,.0f}", styles["Normal"])]
-    if include_expenses:
+    story = [Paragraph("Royal Thai Touch ERP", styles["Title"]), Paragraph(f"Monthly Report - {data['branch_name']}", styles["Heading2"]), Paragraph(f"Period: {date_from} to {date_to}", styles["Normal"]), Paragraph(f"Mode: {report_mode_label(mode)}", styles["Normal"]), Spacer(1, 12), Paragraph(f"Total Revenue: IQD {data['total_revenue']:,.0f}", styles["Normal"])]
+    if mode == "full":
         story.append(Paragraph(f"Total Expenses: IQD {data['total_expenses']:,.0f}", styles["Normal"]))
-    story.append(Paragraph(f"Net Profit: IQD {data['net_profit']:,.0f}", styles["Normal"]))
+    if mode != "revenue_only":
+        story.append(Paragraph(f"Net Profit: IQD {data['net_profit']:,.0f}", styles["Normal"]))
     story.append(Spacer(1, 14))
-    table_data = [["Date", "Revenue"] + (["Expenses"] if include_expenses else []) + ["Net Profit"]]
+    table_data = [report_columns(mode)]
     for row in data["daily_rows"]:
         values = [row["date"], f"IQD {row['revenue']:,.0f}"]
-        if include_expenses:
+        if mode == "full":
             values.append(f"IQD {row['expenses']:,.0f}")
-        values.append(f"IQD {row['net_profit']:,.0f}")
+        if mode != "revenue_only":
+            values.append(f"IQD {row['net_profit']:,.0f}")
         table_data.append(values)
     table = Table(table_data, repeatRows=1)
     table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111111")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#D4AF37")), ("GRID", (0, 0), (-1, -1), 0.5, colors.grey), ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("ALIGN", (1, 1), (-1, -1), "RIGHT"), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F7F7")])]))
@@ -327,8 +352,7 @@ def export_pdf(date_from: date, date_to: date, branch_id: Optional[int] = None, 
     story.append(Paragraph("Confidential - Royal Thai Touch", styles["Italic"]))
     doc.build(story)
     output.seek(0)
-    suffix = "with-expenses" if include_expenses else "revenue-profit-only"
-    filename = f"royal-thai-touch-{data['branch_name'].replace(' ', '-')}-{date_from}-to-{date_to}-{suffix}.pdf"
+    filename = f"royal-thai-touch-{data['branch_name'].replace(' ', '-')}-{date_from}-to-{date_to}-{mode}.pdf"
     return StreamingResponse(output, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 @app.get("/audit-logs")
