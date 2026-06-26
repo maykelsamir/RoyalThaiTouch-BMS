@@ -4,7 +4,14 @@ button, input, select, textarea { font: inherit; }
 .appShell { min-height: 100vh; display: flex; background: radial-gradient(circle at top left, rgba(212,175,55,.16), transparent 35%), #0c0d10; }
 .sidebar { width: 286px; background: rgba(5,6,8,.96); border-right: 1px solid rgba(212,175,55,.22); padding: 24px; }
 .brand { display: flex; gap: 14px; align-items: center; margin-bottom: 34px; }
-.brandLogo { width: 62px; height: 62px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: #111; border: 1px solid rgba(212,175,55,.3); color: #d4af37; font-weight: 900; }
+.brandLogo { width: 88px; height: 64px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: #fff; border: 1px solid rgba(212,175,55,.45); color: #111; font-family: Georgia, 'Times New Roman', serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-align: center; line-height: 1.05; box-shadow: 0 10px 28px rgba(0,0,0,.22); position: relative; overflow: hidden; }
+.brandLogo::before { content: ''; position: absolute; top: 7px; left: 18px; right: 18px; height: 24px; border-top: 3px solid #d4af37; border-left: 3px solid #d4af37; border-right: 3px solid #d4af37; transform: perspective(40px) rotateX(0deg); clip-path: polygon(50% 0, 100% 70%, 100% 100%, 0 100%, 0 70%); opacity: .9; }
+.brandLogo::after { content: 'ROYAL TOUCH'; position: absolute; bottom: 9px; left: 5px; right: 5px; }
+.appShell > form.panel .brand { flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px; }
+.appShell > form.panel .brandLogo { width: 300px; height: 190px; border-radius: 18px; font-size: 0; }
+.appShell > form.panel .brandLogo::before { top: 26px; left: 78px; right: 78px; height: 78px; border-width: 5px; }
+.appShell > form.panel .brandLogo::after { content: 'ROYAL TOUCH\A THAI WELLNESS SERVICES'; white-space: pre; bottom: 32px; font-size: 34px; line-height: 1.8; letter-spacing: 4px; }
+.appShell > form.panel .brand h1 { font-size: 28px; }
 .brand h1 { font-size: 18px; margin: 0; color: #d4af37; }
 .brand span { color: #a1a1aa; font-size: 13px; }
 nav { display: grid; gap: 10px; }
@@ -65,4 +72,4 @@ th { color: #d4af37; font-weight: 700; }
 .summaryLine.total strong { font-size: 26px; }
 .reportPanel p { color: #a1a1aa; }
 .reportControls { display: grid; grid-template-columns: 70px 1fr 50px 1fr auto auto auto; gap: 10px; align-items: center; }
-@media (max-width: 1080px) { .appShell { flex-direction: column; } .sidebar { width: 100%; } .cards, .entryLayout, .inlineForm { grid-template-columns: 1fr; } .topbar, .splitPanel { flex-direction: column; align-items: flex-start; } .reportControls { grid-template-columns: 1fr; } }
+@media (max-width: 1080px) { .appShell { flex-direction: column; } .sidebar { width: 100%; } .cards, .entryLayout, .inlineForm { grid-template-columns: 1fr; } .topbar, .splitPanel { flex-direction: column; align-items: flex-start; } .reportControls { grid-template-columns: 1fr; } .appShell > form.panel .brandLogo { width: 240px; height: 150px; } }
