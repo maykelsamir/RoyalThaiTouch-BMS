@@ -29,6 +29,7 @@ button { border: 0; border-radius: 12px; padding: 11px 14px; background: #d4af37
 .panel { background: rgba(17,19,26,.94); border: 1px solid rgba(255,255,255,.08); border-radius: 22px; padding: 22px; box-shadow: 0 18px 50px rgba(0,0,0,.20); margin-bottom: 20px; }
 .panel h3 { margin: 0 0 18px; color: #d4af37; font-size: 20px; }
 .splitPanel { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.buttonGroup { display: flex; gap: 10px; flex-wrap: wrap; }
 .goldText { color: #d4af37; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 14px 12px; border-bottom: 1px solid rgba(255,255,255,.07); text-align: left; }
@@ -51,7 +52,7 @@ th { color: #d4af37; font-weight: 700; }
 .summaryLine.total { color: #d4af37; border-bottom: 0; }
 .summaryLine.total strong { font-size: 26px; }
 .reportPanel p { color: #a1a1aa; }
-.reportControls { display: grid; grid-template-columns: 70px 1fr 50px 1fr auto auto; gap: 10px; align-items: center; }
+.reportControls { display: grid; grid-template-columns: 70px 1fr 50px 1fr auto auto auto; gap: 10px; align-items: center; }
 @media (max-width: 1080px) {
   .appShell { flex-direction: column; }
   .sidebar { width: 100%; }
