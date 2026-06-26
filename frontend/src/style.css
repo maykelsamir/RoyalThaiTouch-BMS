@@ -30,6 +30,7 @@ button { border: 0; border-radius: 12px; padding: 11px 14px; background: #d4af37
 .panel h3 { margin: 0 0 18px; color: #d4af37; font-size: 20px; }
 .splitPanel { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
 .buttonGroup { display: flex; gap: 10px; flex-wrap: wrap; }
+.inlineForm { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 10px; align-items: center; }
 .goldText { color: #d4af37; }
 .chartWrap { height: 260px; display: flex; align-items: end; gap: 7px; padding: 18px 8px 0; border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)); overflow-x: auto; }
 .chartDay { min-width: 22px; height: 220px; display: flex; align-items: end; justify-content: center; gap: 2px; position: relative; }
@@ -64,4 +65,4 @@ th { color: #d4af37; font-weight: 700; }
 .summaryLine.total strong { font-size: 26px; }
 .reportPanel p { color: #a1a1aa; }
 .reportControls { display: grid; grid-template-columns: 70px 1fr 50px 1fr auto auto auto; gap: 10px; align-items: center; }
-@media (max-width: 1080px) { .appShell { flex-direction: column; } .sidebar { width: 100%; } .cards, .entryLayout { grid-template-columns: 1fr; } .topbar, .splitPanel { flex-direction: column; align-items: flex-start; } .reportControls { grid-template-columns: 1fr; } }
+@media (max-width: 1080px) { .appShell { flex-direction: column; } .sidebar { width: 100%; } .cards, .entryLayout, .inlineForm { grid-template-columns: 1fr; } .topbar, .splitPanel { flex-direction: column; align-items: flex-start; } .reportControls { grid-template-columns: 1fr; } }
