@@ -31,6 +31,17 @@ button { border: 0; border-radius: 12px; padding: 11px 14px; background: #d4af37
 .splitPanel { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
 .buttonGroup { display: flex; gap: 10px; flex-wrap: wrap; }
 .goldText { color: #d4af37; }
+.chartWrap { height: 260px; display: flex; align-items: end; gap: 7px; padding: 18px 8px 0; border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)); overflow-x: auto; }
+.chartDay { min-width: 22px; height: 220px; display: flex; align-items: end; justify-content: center; gap: 2px; position: relative; }
+.chartDay span { position: absolute; bottom: -18px; font-size: 10px; color: #71717a; }
+.bar { width: 8px; border-radius: 999px 999px 0 0; transition: .2s ease; }
+.revenueBar { background: linear-gradient(180deg, #d4af37, #7a5f14); }
+.expenseBar { background: linear-gradient(180deg, #ff6b6b, #6b2020); }
+.chartLegend { display: flex; gap: 18px; margin-top: 28px; color: #a1a1aa; }
+.chartLegend span { display: inline-flex; align-items: center; gap: 8px; }
+.chartLegend i { width: 12px; height: 12px; border-radius: 999px; display: inline-block; }
+.legendRevenue { background: #d4af37; }
+.legendExpense { background: #ff6b6b; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 14px 12px; border-bottom: 1px solid rgba(255,255,255,.07); text-align: left; }
 th { color: #d4af37; font-weight: 700; }
@@ -53,10 +64,4 @@ th { color: #d4af37; font-weight: 700; }
 .summaryLine.total strong { font-size: 26px; }
 .reportPanel p { color: #a1a1aa; }
 .reportControls { display: grid; grid-template-columns: 70px 1fr 50px 1fr auto auto auto; gap: 10px; align-items: center; }
-@media (max-width: 1080px) {
-  .appShell { flex-direction: column; }
-  .sidebar { width: 100%; }
-  .cards, .entryLayout { grid-template-columns: 1fr; }
-  .topbar, .splitPanel { flex-direction: column; align-items: flex-start; }
-  .reportControls { grid-template-columns: 1fr; }
-}
+@media (max-width: 1080px) { .appShell { flex-direction: column; } .sidebar { width: 100%; } .cards, .entryLayout { grid-template-columns: 1fr; } .topbar, .splitPanel { flex-direction: column; align-items: flex-start; } .reportControls { grid-template-columns: 1fr; } }
