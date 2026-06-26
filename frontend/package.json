@@ -1,7 +1,7 @@
 {
   "name": "royal-thai-touch-erp-frontend",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.1",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -13,7 +13,8 @@
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "lucide-react": "latest"
+    "lucide-react": "latest",
+    "recharts": "latest"
   },
   "devDependencies": {}
 }
