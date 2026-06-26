@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BarChart3, Building2, CalendarDays, Download, Plus, RefreshCcw, Save, Settings, Trash2 } from 'lucide-react';
+import { BarChart3, Building2, CalendarDays, Download, FileText, Plus, RefreshCcw, Save, Settings, Trash2 } from 'lucide-react';
 import './style.css';
 
 const API = 'http://localhost:8000';
@@ -26,19 +26,10 @@ function App() {
   const [message, setMessage] = useState('');
   const [report, setReport] = useState(null);
   const [reportRange, setReportRange] = useState({ from: firstDayOfMonthISO(), to: todayISO() });
-  const [entry, setEntry] = useState({
-    branch_id: '',
-    business_date: todayISO(),
-    revenue: '',
-    notes: '',
-    expenses: [{ category: 'Other Expenses', amount: '', notes: '' }]
-  });
+  const [entry, setEntry] = useState({ branch_id: '', business_date: todayISO(), revenue: '', notes: '', expenses: [{ category: 'Other Expenses', amount: '', notes: '' }] });
 
   async function apiFetch(path, options = {}) {
-    const res = await fetch(API + path, {
-      ...options,
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
-    });
+    const res = await fetch(API + path, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.detail || 'Request failed');
@@ -47,10 +38,7 @@ function App() {
   }
 
   async function loadData(dateValue = businessDate) {
-    const [dash, branchList] = await Promise.all([
-      apiFetch(`/dashboard?business_date=${dateValue}`),
-      apiFetch('/branches')
-    ]);
+    const [dash, branchList] = await Promise.all([apiFetch(`/dashboard?business_date=${dateValue}`), apiFetch('/branches')]);
     setDashboard(dash);
     setBranches(branchList);
     if (!entry.branch_id && branchList.length) {
@@ -65,9 +53,7 @@ function App() {
     setReport(data);
   }
 
-  useEffect(() => {
-    loadData().catch(() => setMessage('Backend is starting. Please wait 30 seconds then refresh.'));
-  }, []);
+  useEffect(() => { loadData().catch(() => setMessage('Backend is starting. Please wait 30 seconds then refresh.')); }, []);
 
   async function loadEntry(branchId = entry.branch_id, dateValue = entry.business_date) {
     if (!branchId || !dateValue) return;
@@ -77,11 +63,7 @@ function App() {
       business_date: data.business_date,
       revenue: data.revenue ? String(data.revenue) : '',
       notes: data.notes || '',
-      expenses: data.expenses.length ? data.expenses.map(e => ({
-        category: e.category || 'Other Expenses',
-        amount: e.amount ? String(e.amount) : '',
-        notes: e.notes || ''
-      })) : [{ category: 'Other Expenses', amount: '', notes: '' }]
+      expenses: data.expenses.length ? data.expenses.map(e => ({ category: e.category || 'Other Expenses', amount: e.amount ? String(e.amount) : '', notes: e.notes || '' })) : [{ category: 'Other Expenses', amount: '', notes: '' }]
     });
   }
 
@@ -96,11 +78,7 @@ function App() {
           business_date: entry.business_date,
           revenue: Number(entry.revenue || 0),
           notes: entry.notes,
-          expenses: entry.expenses.map(x => ({
-            category: x.category || 'Other Expenses',
-            amount: Number(x.amount || 0),
-            notes: x.notes || ''
-          }))
+          expenses: entry.expenses.map(x => ({ category: x.category || 'Other Expenses', amount: Number(x.amount || 0), notes: x.notes || '' }))
         })
       });
       setMessage('Saved successfully');
@@ -120,24 +98,11 @@ function App() {
     }
   }
 
-  function addExpense() {
-    setEntry(prev => ({ ...prev, expenses: [...prev.expenses, { category: 'Other Expenses', amount: '', notes: '' }] }));
-  }
-
-  function removeExpense(index) {
-    setEntry(prev => ({ ...prev, expenses: prev.expenses.filter((_, i) => i !== index) }));
-  }
-
-  function updateExpense(index, field, value) {
-    setEntry(prev => ({
-      ...prev,
-      expenses: prev.expenses.map((x, i) => i === index ? { ...x, [field]: value } : x)
-    }));
-  }
-
-  function exportExcel(from = reportRange.from, to = reportRange.to) {
-    window.open(`${API}/reports/excel?date_from=${from}&date_to=${to}`, '_blank');
-  }
+  function addExpense() { setEntry(prev => ({ ...prev, expenses: [...prev.expenses, { category: 'Other Expenses', amount: '', notes: '' }] })); }
+  function removeExpense(index) { setEntry(prev => ({ ...prev, expenses: prev.expenses.filter((_, i) => i !== index) })); }
+  function updateExpense(index, field, value) { setEntry(prev => ({ ...prev, expenses: prev.expenses.map((x, i) => i === index ? { ...x, [field]: value } : x) })); }
+  function exportExcel(from = reportRange.from, to = reportRange.to) { window.open(`${API}/reports/excel?date_from=${from}&date_to=${to}`, '_blank'); }
+  function exportPdf(from = reportRange.from, to = reportRange.to) { window.open(`${API}/reports/pdf?date_from=${from}&date_to=${to}`, '_blank'); }
 
   const expenseTotal = useMemo(() => entry.expenses.reduce((sum, x) => sum + Number(x.amount || 0), 0), [entry.expenses]);
   const entryProfit = Number(entry.revenue || 0) - expenseTotal;
@@ -145,13 +110,7 @@ function App() {
   return (
     <div className="appShell">
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brandLogo">RTT</div>
-          <div>
-            <h1>Royal Thai Touch</h1>
-            <span>ERP v0.7</span>
-          </div>
-        </div>
+        <div className="brand"><div className="brandLogo">RTT</div><div><h1>Royal Thai Touch</h1><span>ERP v0.7.1</span></div></div>
         <nav>
           <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}><BarChart3 size={18}/> Dashboard</button>
           <button className={page === 'entry' ? 'active' : ''} onClick={() => setPage('entry')}><Save size={18}/> Daily Entry</button>
@@ -160,157 +119,14 @@ function App() {
           <button className={page === 'settings' ? 'active' : ''} onClick={() => setPage('settings')}><Settings size={18}/> Settings</button>
         </nav>
       </aside>
-
       <main className="content">
-        <header className="topbar">
-          <div>
-            <h2>{page === 'dashboard' ? 'Executive Dashboard' : page === 'entry' ? 'Daily Entry' : page === 'reports' ? 'Reports' : page === 'branches' ? 'Branches' : 'Settings'}</h2>
-            <p>Royal Thai Touch ERP financial control center</p>
-          </div>
-          <div className="dateBox">
-            <CalendarDays size={18}/>
-            <input type="date" value={businessDate} onChange={async e => { setBusinessDate(e.target.value); await loadData(e.target.value); }} />
-            <button onClick={() => loadData()}><RefreshCcw size={16}/> Refresh</button>
-          </div>
-        </header>
-
+        <header className="topbar"><div><h2>{page === 'dashboard' ? 'Executive Dashboard' : page === 'entry' ? 'Daily Entry' : page === 'reports' ? 'Reports' : page === 'branches' ? 'Branches' : 'Settings'}</h2><p>Royal Thai Touch ERP financial control center</p></div><div className="dateBox"><CalendarDays size={18}/><input type="date" value={businessDate} onChange={async e => { setBusinessDate(e.target.value); await loadData(e.target.value); }} /><button onClick={() => loadData()}><RefreshCcw size={16}/> Refresh</button></div></header>
         {message && <div className="notice">{message}</div>}
-
-        {page === 'dashboard' && (
-          <>
-            <section className="cards">
-              <div className="metric"><span>Revenue Today</span><strong>{formatIQD(dashboard?.total_revenue)}</strong></div>
-              <div className="metric danger"><span>Expenses Today</span><strong>{formatIQD(dashboard?.total_expenses)}</strong></div>
-              <div className="metric gold"><span>Net Profit</span><strong>{formatIQD(dashboard?.net_profit)}</strong></div>
-              <div className="metric"><span>Month Profit</span><strong>{formatIQD(dashboard?.month_profit)}</strong></div>
-            </section>
-
-            <section className="panel splitPanel">
-              <div>
-                <h3>Company Status</h3>
-                <p>Best Branch: <strong className="goldText">{dashboard?.best_branch || '-'}</strong></p>
-                <p>Missing Branches: <strong>{dashboard?.missing_branches?.length || 0}</strong></p>
-              </div>
-              <button onClick={() => exportExcel(businessDate, businessDate)}><Download size={18}/> Export Today</button>
-            </section>
-
-            <section className="panel">
-              <h3>Branch Performance</h3>
-              <table>
-                <thead><tr><th>Branch</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th><th>Status</th></tr></thead>
-                <tbody>
-                  {dashboard?.branches?.map(row => (
-                    <tr key={row.branch_id}>
-                      <td>{row.branch}</td>
-                      <td>{formatIQD(row.revenue)}</td>
-                      <td>{formatIQD(row.expenses)}</td>
-                      <td>{formatIQD(row.net_profit)}</td>
-                      <td><span className={'status ' + row.status.toLowerCase()}>{row.status}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          </>
-        )}
-
-        {page === 'entry' && (
-          <section className="entryLayout">
-            <form className="panel entryPanel" onSubmit={saveEntry}>
-              <h3>Save Day</h3>
-              <label>Branch</label>
-              <select value={entry.branch_id} onChange={async e => { const id = e.target.value; setEntry({...entry, branch_id: id}); await loadEntry(id, entry.business_date); }}>
-                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-
-              <label>Date</label>
-              <input type="date" value={entry.business_date} onChange={async e => { const d = e.target.value; setEntry({...entry, business_date: d}); await loadEntry(entry.branch_id, d); }} />
-
-              <label>Daily Revenue</label>
-              <input type="number" value={entry.revenue} onChange={e => setEntry({...entry, revenue: e.target.value})} placeholder="0" />
-
-              <label>Revenue Notes</label>
-              <textarea value={entry.notes} onChange={e => setEntry({...entry, notes: e.target.value})} placeholder="Optional notes" />
-
-              <div className="expenseHeader">
-                <h4>Expenses</h4>
-                <button type="button" onClick={addExpense}><Plus size={16}/> Add Expense</button>
-              </div>
-
-              {entry.expenses.map((expense, index) => (
-                <div className="expenseRow" key={index}>
-                  <input value={expense.category} onChange={e => updateExpense(index, 'category', e.target.value)} placeholder="Other Expenses" />
-                  <input type="number" value={expense.amount} onChange={e => updateExpense(index, 'amount', e.target.value)} placeholder="Amount" />
-                  <input value={expense.notes} onChange={e => updateExpense(index, 'notes', e.target.value)} placeholder="Notes" />
-                  <button type="button" className="iconBtn" onClick={() => removeExpense(index)}><Trash2 size={16}/></button>
-                </div>
-              ))}
-
-              <button className="primaryBtn">Save Day</button>
-              <button type="button" className="secondaryBtn" onClick={closeDay}>Close Day</button>
-            </form>
-
-            <div className="panel summaryPanel">
-              <h3>Daily Summary</h3>
-              <div className="summaryLine"><span>Revenue</span><strong>{formatIQD(entry.revenue)}</strong></div>
-              <div className="summaryLine"><span>Expenses</span><strong>{formatIQD(expenseTotal)}</strong></div>
-              <div className="summaryLine total"><span>Net Profit</span><strong>{formatIQD(entryProfit)}</strong></div>
-            </div>
-          </section>
-        )}
-
-        {page === 'reports' && (
-          <>
-            <section className="panel reportPanel">
-              <h3>Reports</h3>
-              <div className="reportControls">
-                <label>From</label>
-                <input type="date" value={reportRange.from} onChange={e => setReportRange({...reportRange, from: e.target.value})}/>
-                <label>To</label>
-                <input type="date" value={reportRange.to} onChange={e => setReportRange({...reportRange, to: e.target.value})}/>
-                <button onClick={loadReport}><BarChart3 size={18}/> Show Report</button>
-                <button onClick={() => exportExcel()}><Download size={18}/> Export Excel</button>
-              </div>
-            </section>
-
-            {report && (
-              <>
-                <section className="cards">
-                  <div className="metric"><span>Total Revenue</span><strong>{formatIQD(report.total_revenue)}</strong></div>
-                  <div className="metric danger"><span>Total Expenses</span><strong>{formatIQD(report.total_expenses)}</strong></div>
-                  <div className="metric gold"><span>Net Profit</span><strong>{formatIQD(report.net_profit)}</strong></div>
-                </section>
-
-                <section className="panel">
-                  <h3>Branch Totals</h3>
-                  <table>
-                    <thead><tr><th>Branch</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th></tr></thead>
-                    <tbody>{report.branch_totals.map(row => <tr key={row.branch}><td>{row.branch}</td><td>{formatIQD(row.revenue)}</td><td>{formatIQD(row.expenses)}</td><td>{formatIQD(row.net_profit)}</td></tr>)}</tbody>
-                  </table>
-                </section>
-              </>
-            )}
-          </>
-        )}
-
-        {page === 'branches' && (
-          <section className="panel">
-            <h3>Branches</h3>
-            <table>
-              <thead><tr><th>ID</th><th>Branch</th><th>Address</th><th>Status</th></tr></thead>
-              <tbody>{branches.map(b => <tr key={b.id}><td>{b.id}</td><td>{b.name}</td><td>{b.address}</td><td>Active</td></tr>)}</tbody>
-            </table>
-          </section>
-        )}
-
-        {page === 'settings' && (
-          <section className="panel">
-            <h3>Settings</h3>
-            <p>Company: Royal Thai Touch</p>
-            <p>Currency: IQD</p>
-            <p>Expense default category: Other Expenses</p>
-          </section>
-        )}
+        {page === 'dashboard' && (<><section className="cards"><div className="metric"><span>Revenue Today</span><strong>{formatIQD(dashboard?.total_revenue)}</strong></div><div className="metric danger"><span>Expenses Today</span><strong>{formatIQD(dashboard?.total_expenses)}</strong></div><div className="metric gold"><span>Net Profit</span><strong>{formatIQD(dashboard?.net_profit)}</strong></div><div className="metric"><span>Month Profit</span><strong>{formatIQD(dashboard?.month_profit)}</strong></div></section><section className="panel splitPanel"><div><h3>Company Status</h3><p>Best Branch: <strong className="goldText">{dashboard?.best_branch || '-'}</strong></p><p>Missing Branches: <strong>{dashboard?.missing_branches?.length || 0}</strong></p></div><div className="buttonGroup"><button onClick={() => exportExcel(businessDate, businessDate)}><Download size={18}/> Excel Today</button><button onClick={() => exportPdf(businessDate, businessDate)}><FileText size={18}/> PDF Today</button></div></section><section className="panel"><h3>Branch Performance</h3><table><thead><tr><th>Branch</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th><th>Status</th></tr></thead><tbody>{dashboard?.branches?.map(row => (<tr key={row.branch_id}><td>{row.branch}</td><td>{formatIQD(row.revenue)}</td><td>{formatIQD(row.expenses)}</td><td>{formatIQD(row.net_profit)}</td><td><span className={'status ' + row.status.toLowerCase()}>{row.status}</span></td></tr>))}</tbody></table></section></>)}
+        {page === 'entry' && (<section className="entryLayout"><form className="panel entryPanel" onSubmit={saveEntry}><h3>Save Day</h3><label>Branch</label><select value={entry.branch_id} onChange={async e => { const id = e.target.value; setEntry({...entry, branch_id: id}); await loadEntry(id, entry.business_date); }}>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select><label>Date</label><input type="date" value={entry.business_date} onChange={async e => { const d = e.target.value; setEntry({...entry, business_date: d}); await loadEntry(entry.branch_id, d); }} /><label>Daily Revenue</label><input type="number" value={entry.revenue} onChange={e => setEntry({...entry, revenue: e.target.value})} placeholder="0" /><label>Revenue Notes</label><textarea value={entry.notes} onChange={e => setEntry({...entry, notes: e.target.value})} placeholder="Optional notes" /><div className="expenseHeader"><h4>Expenses</h4><button type="button" onClick={addExpense}><Plus size={16}/> Add Expense</button></div>{entry.expenses.map((expense, index) => (<div className="expenseRow" key={index}><input value={expense.category} onChange={e => updateExpense(index, 'category', e.target.value)} placeholder="Other Expenses" /><input type="number" value={expense.amount} onChange={e => updateExpense(index, 'amount', e.target.value)} placeholder="Amount" /><input value={expense.notes} onChange={e => updateExpense(index, 'notes', e.target.value)} placeholder="Notes" /><button type="button" className="iconBtn" onClick={() => removeExpense(index)}><Trash2 size={16}/></button></div>))}<button className="primaryBtn">Save Day</button><button type="button" className="secondaryBtn" onClick={closeDay}>Close Day</button></form><div className="panel summaryPanel"><h3>Daily Summary</h3><div className="summaryLine"><span>Revenue</span><strong>{formatIQD(entry.revenue)}</strong></div><div className="summaryLine"><span>Expenses</span><strong>{formatIQD(expenseTotal)}</strong></div><div className="summaryLine total"><span>Net Profit</span><strong>{formatIQD(entryProfit)}</strong></div></div></section>)}
+        {page === 'reports' && (<><section className="panel reportPanel"><h3>Reports</h3><div className="reportControls"><label>From</label><input type="date" value={reportRange.from} onChange={e => setReportRange({...reportRange, from: e.target.value})}/><label>To</label><input type="date" value={reportRange.to} onChange={e => setReportRange({...reportRange, to: e.target.value})}/><button onClick={loadReport}><BarChart3 size={18}/> Show</button><button onClick={() => exportExcel()}><Download size={18}/> Excel</button><button onClick={() => exportPdf()}><FileText size={18}/> PDF</button></div></section>{report && (<><section className="cards"><div className="metric"><span>Total Revenue</span><strong>{formatIQD(report.total_revenue)}</strong></div><div className="metric danger"><span>Total Expenses</span><strong>{formatIQD(report.total_expenses)}</strong></div><div className="metric gold"><span>Net Profit</span><strong>{formatIQD(report.net_profit)}</strong></div></section><section className="panel"><h3>Branch Totals</h3><table><thead><tr><th>Branch</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th></tr></thead><tbody>{report.branch_totals.map(row => <tr key={row.branch}><td>{row.branch}</td><td>{formatIQD(row.revenue)}</td><td>{formatIQD(row.expenses)}</td><td>{formatIQD(row.net_profit)}</td></tr>)}</tbody></table></section></>)}</>)}
+        {page === 'branches' && (<section className="panel"><h3>Branches</h3><table><thead><tr><th>ID</th><th>Branch</th><th>Address</th><th>Status</th></tr></thead><tbody>{branches.map(b => <tr key={b.id}><td>{b.id}</td><td>{b.name}</td><td>{b.address}</td><td>Active</td></tr>)}</tbody></table></section>)}
+        {page === 'settings' && (<section className="panel"><h3>Settings</h3><p>Company: Royal Thai Touch</p><p>Currency: IQD</p><p>Expense default category: Other Expenses</p></section>)}
       </main>
     </div>
   );
