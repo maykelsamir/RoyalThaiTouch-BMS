@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16
+    container_name: rtt_db_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-royalthaitouch}
+      POSTGRES_USER: ${POSTGRES_USER:-rtt_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+    volumes:
+      - rtt_postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rtt_admin} -d ${POSTGRES_DB:-royalthaitouch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    container_name: rtt_backend_prod
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rtt_admin}:${POSTGRES_PASSWORD:-change_this_password}@db:5432/${POSTGRES_DB:-royalthaitouch}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: rtt_frontend_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  rtt_postgres_data_prod:

@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16
+    container_name: rtt_db
+    environment:
+      POSTGRES_DB: royalthaitouch
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - rtt_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d royalthaitouch"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    container_name: rtt_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/royalthaitouch
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: rtt_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  rtt_postgres_data:
