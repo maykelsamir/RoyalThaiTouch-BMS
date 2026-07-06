@@ -3,8 +3,8 @@ WORKDIR /app
 COPY package.json .
 RUN npm install
 COPY . .
-# In production the browser must call the same public domain, not localhost on the employee computer.
 RUN sed -i "s|const API='http://localhost:8000';|const API=window.location.origin + '/api';|" src/main.jsx
+RUN node patch-branches.cjs
 RUN npm run build
 
 FROM nginx:1.27-alpine
