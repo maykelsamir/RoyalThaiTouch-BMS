@@ -5,6 +5,17 @@ RUN npm install
 COPY . .
 # In production the browser must call the same public domain, not localhost on the employee computer.
 RUN sed -i "s|const API='http://localhost:8000';|const API=window.location.origin + '/api';|" src/main.jsx
+# Fix document printing: wait until images are loaded before calling print.
+RUN python - <<'PY'
+from pathlib import Path
+p = Path('src/main.jsx')
+s = p.read_text()
+old = '''function printSingleDocument(title,img,emp){if(!img)return setMessage('No image available');const w=window.open('','_blank');w.document.write(`<html><body style="font-family:Arial;text-align:center;padding:24px"><h1>Royal Thai Touch</h1><p><b>${title}</b><br/>${emp?.name||'-'} | ${emp?.branch||'-'}</p><img src="${img}" style="max-width:96%;max-height:82vh;object-fit:contain"/><script>window.print()</script></body></html>`);w.document.close()}function printEmployee(emp){'''
+new = '''function printSingleDocument(title,img,emp){if(!img)return setMessage('No image available for this document');const w=window.open('','_blank');if(!w)return setMessage('Please allow popups to print documents');const safeTitle=String(title||'Document').replace(/[<>]/g,'');const safeName=String(emp?.name||'-').replace(/[<>]/g,'');const safeBranch=String(emp?.branch||'-').replace(/[<>]/g,'');w.document.open();w.document.write(`<!doctype html><html><head><title>${safeTitle}</title><style>body{font-family:Arial;text-align:center;padding:24px;color:#111}h1{margin-bottom:4px}.meta{color:#555;margin-bottom:18px}img{max-width:96%;max-height:82vh;object-fit:contain;border:1px solid #ccc;padding:8px}</style></head><body><h1>Royal Thai Touch</h1><div class="meta"><b>${safeTitle}</b><br/>Employee: ${safeName} | Center: ${safeBranch}</div><img id="docImg" src="${img}"/><script>const done=()=>setTimeout(()=>{window.focus();window.print();},350);const im=document.getElementById('docImg');if(im.complete){done()}else{im.onload=done;im.onerror=done;}<\/script></body></html>`);w.document.close()}function printEmployee(emp){'''
+if old not in s:
+    raise SystemExit('printSingleDocument pattern not found')
+p.write_text(s.replace(old, new))
+PY
 RUN npm run build
 
 FROM nginx:1.27-alpine
