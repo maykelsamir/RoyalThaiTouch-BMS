@@ -1,3 +1,4 @@
-/* Sidebar order override: place Monthly Fixed Expenses under month intery stauts */
-.sidebar nav button:nth-child(3) { order: 4; }
-.sidebar nav button:nth-child(4) { order: 3; }
+/* Sidebar final order helpers */
+.logoutBtn {
+  order: 9999 !important;
+}
