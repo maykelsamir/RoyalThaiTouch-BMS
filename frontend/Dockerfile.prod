@@ -6,8 +6,8 @@ COPY . .
 RUN sed -i "s|const API='http://localhost:8000';|const API=window.location.origin + '/api';|" src/main.jsx
 RUN node patch-branches.cjs
 RUN node patch-auth.cjs
+RUN node patch-mobile.cjs
 RUN npm run build
-
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
