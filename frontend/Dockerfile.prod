@@ -12,7 +12,6 @@ RUN node patch-staff-entry.cjs
 RUN node patch-staff-branch-lock.cjs
 RUN node patch-month-status-admin-only.cjs
 RUN node patch-final-menu-order.cjs
-RUN node patch-yesterday-dashboard.cjs
 RUN npm run build
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
