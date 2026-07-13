@@ -20,6 +20,7 @@ RUN node patch-reports-v2.cjs
 RUN node patch-granular-permissions.cjs
 RUN node patch-role-home-pages.cjs
 RUN node patch-modern-design.cjs
+RUN node patch-passkeys.cjs
 RUN npm run build
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
