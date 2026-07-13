@@ -3,21 +3,31 @@ const jsxPath='src/main.jsx';
 const cssPath='src/style.css';
 let s=fs.readFileSync(jsxPath,'utf8');
 
-// Give the authentication wrapper and form stable classes. Remove the fixed inline width
-// that prevented the mobile form from expanding to the viewport.
-s=s.replace(
-  /<div className="appShell" style=\{\{alignItems:'center',justifyContent:'center',padding:24\}\}><form className="panel" style=\{\{width:'min\(460px,94vw\)'\}\}/g,
-  '<div className="appShell authShell"><form className="panel authPanel"'
-);
-
-// Fallback for slightly different generated formatting.
-s=s.replace(
-  /<div className="appShell" style=\{\{alignItems:'center',justifyContent:'center',padding:\s*24\}\}><form className="panel" style=\{\{width:\s*'min\(460px,94vw\)'\}\}/g,
-  '<div className="appShell authShell"><form className="panel authPanel"'
-);
-
+// Convert either the original login markup or the markup produced by the
+// previous mobile-login patch into stable fullscreen classes.
 if(!s.includes('className="appShell authShell"')){
-  console.error('AuthScreen wrapper was not found');
+  s=s.replace(
+    /<div className="appShell" style=\{\{alignItems:'center',justifyContent:'center',padding:\s*24\}\}><form className="panel" style=\{\{width:\s*'min\(460px,94vw\)'\}\}/g,
+    '<div className="appShell authShell"><form className="panel authPanel"'
+  );
+
+  s=s.replace(
+    /<div className="appShell loginShell"[^>]*><form className="panel loginPanel"[^>]*>/g,
+    '<div className="appShell authShell"><form className="panel authPanel">'
+  );
+
+  s=s.replace(
+    /className="appShell loginShell"/g,
+    'className="appShell authShell"'
+  );
+  s=s.replace(
+    /className="panel loginPanel"/g,
+    'className="panel authPanel"'
+  );
+}
+
+if(!s.includes('className="appShell authShell"')||!s.includes('className="panel authPanel"')){
+  console.error('Authentication screen markup was not found');
   process.exit(1);
 }
 fs.writeFileSync(jsxPath,s);
@@ -48,30 +58,35 @@ const patch=`
     min-width:100vw!important;
     min-height:100vh!important;
     min-height:100dvh!important;
-    padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom))!important;
+    padding:0!important;
     align-items:stretch!important;
-    justify-content:stretch!important;
+    justify-content:flex-start!important;
     background:#042B34!important;
   }
   .authPanel{
-    width:100%!important;
+    width:100vw!important;
     max-width:none!important;
-    min-height:calc(100dvh - max(36px,env(safe-area-inset-top)) - max(36px,env(safe-area-inset-bottom)))!important;
+    min-height:100vh!important;
+    min-height:100dvh!important;
     margin:0!important;
-    padding:clamp(22px,6vw,34px)!important;
-    border-radius:22px!important;
+    padding:max(34px,env(safe-area-inset-top)) 24px max(28px,env(safe-area-inset-bottom))!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
     display:flex!important;
     flex-direction:column!important;
     justify-content:center!important;
     box-sizing:border-box!important;
+    background:linear-gradient(180deg,#063945 0%,#042B34 100%)!important;
   }
-  .authPanel .brand{width:100%!important;justify-content:center!important;text-align:center!important;margin-bottom:24px!important}
-  .authPanel .brandLogo{width:min(72vw,360px)!important;height:auto!important;min-height:150px!important;margin:0 auto 16px!important}
-  .authPanel h1{font-size:clamp(30px,8vw,42px)!important}
-  .authPanel h3{font-size:22px!important;margin:12px 0 18px!important}
+  .authPanel .brand{width:100%!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;padding:0 0 24px!important;margin-bottom:24px!important}
+  .authPanel .brandLogo{width:min(78vw,340px)!important;height:auto!important;min-height:180px!important;margin:0 auto 18px!important;background-size:contain!important;background-position:center!important;background-repeat:no-repeat!important}
+  .authPanel h1{font-size:clamp(30px,8vw,42px)!important;margin:0 0 6px!important}
+  .authPanel h3{font-size:22px!important;margin:0 0 18px!important}
   .authPanel label{font-size:17px!important;margin-top:12px!important}
-  .authPanel input{width:100%!important;min-height:56px!important;font-size:18px!important;margin-top:7px!important}
+  .authPanel input{width:100%!important;min-height:56px!important;font-size:18px!important;margin-top:7px!important;padding:14px 16px!important}
   .authPanel button{width:100%!important;min-height:56px!important;font-size:17px!important;margin-top:14px!important}
+  .authPanel .notice{font-size:15px!important;padding:14px!important}
 }
 `;
 if(css.includes(marker)) css=css.slice(0,css.indexOf(marker))+patch;
