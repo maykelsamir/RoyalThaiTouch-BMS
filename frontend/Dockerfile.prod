@@ -24,6 +24,7 @@ RUN node patch-passkeys.cjs
 RUN node patch-month-status-finance.cjs
 RUN node patch-daily-report-image.cjs
 RUN node patch-month-status-edit.cjs
+RUN node patch-login-mobile-fullscreen.cjs
 RUN npm run build
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
