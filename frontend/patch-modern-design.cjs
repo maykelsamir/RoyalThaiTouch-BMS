@@ -5,30 +5,30 @@ const patch = `
 
 /* Modern commercial UI refresh */
 :root {
-  --bg-0: #090a0d;
-  --bg-1: #101217;
-  --bg-2: #171a21;
-  --line: rgba(255,255,255,.08);
+  --bg-0: #042B34;
+  --bg-1: #063945;
+  --bg-2: #0A4550;
+  --line: rgba(255,255,255,.10);
   --gold: #d4af37;
   --gold-soft: rgba(212,175,55,.14);
   --text: #f7f7f8;
-  --muted: #9ca3af;
+  --muted: #b7c8cc;
   --danger: #ff7a7a;
   --success: #6ee7a8;
   --radius: 20px;
   --shadow: 0 16px 45px rgba(0,0,0,.28);
 }
-html { background: var(--bg-0); }
+html, body, #root { background: #042B34 !important; }
 body {
   background:
     radial-gradient(circle at top right, rgba(212,175,55,.08), transparent 28%),
-    linear-gradient(180deg, var(--bg-0), #0d0f14 55%, #090a0d);
+    linear-gradient(180deg, #042B34, #063945 55%, #042B34) !important;
   color: var(--text);
 }
-.appShell { min-height: 100vh; }
+.appShell { min-height: 100vh; background:#042B34; }
 .sidebar {
-  background: linear-gradient(180deg, rgba(13,15,20,.98), rgba(8,9,12,.98));
-  border-right: 1px solid rgba(212,175,55,.12);
+  background: linear-gradient(180deg, rgba(6,57,69,.99), rgba(4,43,52,.99));
+  border-right: 1px solid rgba(212,175,55,.16);
   box-shadow: 14px 0 40px rgba(0,0,0,.22);
 }
 .brand {
@@ -39,9 +39,9 @@ body {
 .brandLogo {
   box-shadow: inset 0 0 0 1px rgba(212,175,55,.35), 0 10px 25px rgba(0,0,0,.3);
 }
-.content { padding: 28px 30px 50px; }
+.content { padding: 28px 30px 50px; background:#042B34; }
 .topbar {
-  background: rgba(16,18,23,.72);
+  background: rgba(6,57,69,.88);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 18px 20px;
@@ -52,7 +52,7 @@ body {
 .topbar p { color: var(--muted); }
 .panel,
 .metric {
-  background: linear-gradient(180deg, rgba(24,27,34,.94), rgba(15,17,22,.96));
+  background: linear-gradient(180deg, rgba(10,69,80,.94), rgba(6,57,69,.96));
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -80,8 +80,8 @@ body {
 .metric:hover { transform: translateY(-2px); border-color: rgba(212,175,55,.28); }
 .metric > span { color: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; }
 .metric > strong { display: block; margin-top: 13px; font-size: clamp(23px, 2vw, 32px); line-height: 1.1; }
-.metric.gold { background: linear-gradient(145deg, rgba(212,175,55,.18), rgba(24,27,34,.96)); border-color: rgba(212,175,55,.38); }
-.metric.danger { background: linear-gradient(145deg, rgba(255,107,107,.13), rgba(24,27,34,.96)); }
+.metric.gold { background: linear-gradient(145deg, rgba(212,175,55,.18), rgba(10,69,80,.96)); border-color: rgba(212,175,55,.38); }
+.metric.danger { background: linear-gradient(145deg, rgba(255,107,107,.13), rgba(10,69,80,.96)); }
 button {
   border-radius: 13px;
   font-weight: 750;
@@ -94,8 +94,8 @@ button:not(.secondaryBtn):not(.iconBtn) {
   box-shadow: 0 8px 20px rgba(212,175,55,.10);
 }
 input, select, textarea {
-  background: rgba(8,10,14,.72);
-  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(4,43,52,.78);
+  border: 1px solid rgba(255,255,255,.12);
   border-radius: 13px;
   min-height: 44px;
   padding: 11px 13px;
@@ -112,17 +112,18 @@ table {
   border: 1px solid var(--line);
   border-radius: 16px;
   overflow: hidden;
+  background: rgba(6,57,69,.72);
 }
 th {
-  background: rgba(255,255,255,.035);
-  color: #d8d8dc;
+  background: rgba(10,69,80,.90);
+  color: #e3ecee;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: .55px;
 }
 th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); }
 tbody tr { transition: background .15s ease; }
-tbody tr:hover { background: rgba(212,175,55,.04); }
+tbody tr:hover { background: rgba(212,175,55,.05); }
 tbody tr:last-child td { border-bottom: 0; }
 .notice {
   border-radius: 14px;
@@ -133,7 +134,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .summaryLine { padding: 12px 0; }
 .summaryLine.total { color: var(--gold); font-size: 17px; }
 .navGroup { gap: 7px; }
-.navSectionLabel { color: #666b76; }
+.navSectionLabel { color: #91a7ac; }
 .groupedNav button {
   min-height: 43px;
   border: 1px solid transparent;
