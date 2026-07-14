@@ -4,7 +4,7 @@ p = Path('/app/app/main.py')
 s = p.read_text(encoding='utf-8')
 
 if 'import shutil' not in s:
-    s = s.replace('import os\n', 'import os\nimport shutil\nimport platform\n')
+    s = s.replace('import os\n', 'import os\nimport shutil\nimport platform\nfrom pathlib import Path\n')
 
 if 'from fastapi import Depends, FastAPI, HTTPException, Query, Request' not in s:
     s = s.replace(
