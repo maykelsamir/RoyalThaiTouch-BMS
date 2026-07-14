@@ -27,6 +27,7 @@ RUN node patch-month-status-edit.cjs
 RUN node patch-stable-auth.cjs
 RUN node patch-passkey-icon.cjs
 RUN node patch-mobile-experience-v2.cjs
+RUN node patch-system-health.cjs
 RUN npm run build
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
