@@ -6,6 +6,15 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=4, max_length=128)
 
 
+class FirstAdminRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=120, pattern=r"^[A-Za-z0-9_.-]+$")
+    password: str = Field(min_length=8, max_length=128)
+
+
+class SetupStatus(BaseModel):
+    initialized: bool
+
+
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
