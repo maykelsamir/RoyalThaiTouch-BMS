@@ -1,19 +1,73 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    hash_password,
+    verify_password,
+)
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RefreshRequest, TokenPair, UserView
+from app.schemas.auth import (
+    FirstAdminRequest,
+    LoginRequest,
+    RefreshRequest,
+    SetupStatus,
+    TokenPair,
+    UserView,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+ADMIN_PERMISSIONS = [
+    "dashboard.view",
+    "daily_entry.create",
+    "daily_entry.approve",
+    "finance.view",
+    "reports.view",
+    "branches.manage",
+    "employees.manage",
+    "users.manage",
+    "audit.view",
+    "system_health.view",
+]
+
+
+@router.get("/setup-status", response_model=SetupStatus)
+def setup_status(db: Session = Depends(get_db)) -> SetupStatus:
+    user_count = db.scalar(select(func.count()).select_from(User)) or 0
+    return SetupStatus(initialized=user_count > 0)
+
+
+@router.post("/setup", response_model=UserView, status_code=status.HTTP_201_CREATED)
+def create_first_admin(body: FirstAdminRequest, db: Session = Depends(get_db)) -> User:
+    user_count = db.scalar(select(func.count()).select_from(User)) or 0
+    if user_count > 0:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="System is already initialized")
+
+    username = body.username.strip().lower()
+    admin = User(
+        username=username,
+        password_hash=hash_password(body.password),
+        role="Admin",
+        permissions=ADMIN_PERMISSIONS,
+        allowed_branch_ids=[],
+        active=True,
+    )
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    return admin
 
 
 @router.post("/login", response_model=TokenPair)
 def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenPair:
-    user = db.scalar(select(User).where(User.username == body.username.strip()))
+    username = body.username.strip().lower()
+    user = db.scalar(select(User).where(func.lower(User.username) == username))
     if not user or not user.active or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
     return TokenPair(
