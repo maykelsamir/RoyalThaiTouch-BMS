@@ -1,0 +1,174 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f8fafc;
+  background: #042b34;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; margin: 0; }
+body { min-width: 320px; background: #042b34; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .7; }
+
+.authPage,
+.loadingPage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(212,175,55,.16), transparent 32%),
+    linear-gradient(145deg, #042b34, #063945 58%, #042b34);
+}
+
+.authCard,
+.errorCard {
+  width: min(100%, 560px);
+  padding: 34px;
+  border-radius: 28px;
+  background: rgba(7, 60, 70, .92);
+  border: 1px solid rgba(212,175,55,.28);
+  box-shadow: 0 28px 80px rgba(0,0,0,.34);
+  backdrop-filter: blur(18px);
+}
+
+.brandBlock {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brandMark {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  background: #d4af37;
+  color: #042b34;
+  font-weight: 900;
+  letter-spacing: .04em;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+}
+
+.brandBlock h1,
+.brandBlock p { margin: 0; }
+.brandBlock h1 { color: #f1cc55; font-size: 22px; }
+.brandBlock p { color: #a9c0c5; margin-top: 3px; }
+
+.authHeader { margin: 34px 0 24px; }
+.authHeader h2,
+.welcomePanel h2 { margin: 8px 0 10px; font-size: clamp(28px, 5vw, 42px); line-height: 1.08; }
+.authHeader p,
+.welcomePanel p,
+.moduleGrid p { color: #b7c8cc; line-height: 1.65; }
+.eyebrow { color: #e1bf4e; text-transform: uppercase; font-size: 12px; letter-spacing: .15em; font-weight: 800; }
+
+.authForm { display: grid; gap: 18px; }
+.authForm label { display: grid; gap: 8px; color: #e8f0f2; font-weight: 650; }
+.authForm input {
+  width: 100%;
+  min-height: 54px;
+  padding: 0 16px;
+  color: #fff;
+  background: #03232b;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 14px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.authForm input:focus {
+  border-color: #d4af37;
+  box-shadow: 0 0 0 4px rgba(212,175,55,.12);
+}
+
+.primaryButton,
+.secondaryButton {
+  min-height: 50px;
+  padding: 0 20px;
+  border-radius: 14px;
+  font-weight: 850;
+}
+.primaryButton { border: 0; background: #d4af37; color: #042b34; }
+.primaryButton:hover { background: #e5c34c; }
+.secondaryButton { border: 1px solid rgba(212,175,55,.35); background: rgba(212,175,55,.08); color: #f4d66f; }
+
+.alert {
+  margin-bottom: 20px;
+  padding: 13px 15px;
+  border-radius: 13px;
+  border: 1px solid rgba(248,113,113,.35);
+  background: rgba(127,29,29,.28);
+  color: #fecaca;
+}
+
+.loadingPage { text-align: center; }
+.loader {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,.16);
+  border-top-color: #d4af37;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.appPage { min-height: 100vh; padding: 28px; background: #042b34; }
+.appHeader {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+.headerActions { display: flex; align-items: center; gap: 14px; }
+.userBadge { display: grid; text-align: right; }
+.userBadge span { color: #9eb5ba; font-size: 13px; margin-top: 2px; }
+
+.welcomePanel {
+  max-width: 1240px;
+  margin: 34px auto 20px;
+  padding: 36px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(10,69,80,.95), rgba(5,48,58,.95));
+  border: 1px solid rgba(212,175,55,.18);
+}
+
+.moduleGrid {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+.moduleGrid article {
+  min-height: 190px;
+  padding: 24px;
+  border-radius: 20px;
+  background: #073c46;
+  border: 1px solid rgba(255,255,255,.09);
+}
+.moduleGrid article > span { color: #d4af37; font-size: 12px; font-weight: 900; }
+.moduleGrid h3 { margin: 34px 0 8px; font-size: 21px; }
+
+@media (max-width: 900px) {
+  .moduleGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .authPage { padding: 0; display: block; }
+  .authCard { min-height: 100vh; width: 100%; border-radius: 0; padding: max(28px, env(safe-area-inset-top)) 22px max(28px, env(safe-area-inset-bottom)); }
+  .appPage { padding: 18px; }
+  .appHeader { align-items: flex-start; }
+  .headerActions { flex-direction: column; align-items: flex-end; }
+  .welcomePanel { padding: 26px 22px; }
+  .moduleGrid { grid-template-columns: 1fr; }
+  .brandBlock h1 { font-size: 18px; }
+  .brandMark { width: 50px; height: 50px; }
+}
