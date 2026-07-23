@@ -2,9 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.dashboard import router as dashboard_router
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
+from app.models.finance import Branch, DailyRevenue, Expense  # noqa: F401
 from app.models.user import User  # noqa: F401
 
 settings = get_settings()
@@ -22,6 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
 
 
 @app.on_event("startup")
