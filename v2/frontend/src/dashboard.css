@@ -1,0 +1,77 @@
+.dashboardHeading {
+  max-width: 1240px;
+  margin: 34px auto 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 20px;
+}
+.dashboardHeading h2 { margin: 8px 0 6px; font-size: clamp(30px, 5vw, 48px); }
+.dashboardHeading p { margin: 0; color: #a9c0c5; }
+.dashboardAlert {
+  max-width: 1240px;
+  margin: 0 auto 20px;
+  padding: 14px 16px;
+  border: 1px solid rgba(248,113,113,.4);
+  background: rgba(127,29,29,.25);
+  color: #fecaca;
+  border-radius: 14px;
+}
+.companyCard {
+  max-width: 1240px;
+  margin: 0 auto 22px;
+  padding: 28px;
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) 2fr;
+  gap: 26px;
+  border-radius: 24px;
+  border: 1px solid rgba(212,175,55,.32);
+  background: linear-gradient(135deg, rgba(9,74,86,.98), rgba(5,45,54,.98));
+  box-shadow: 0 24px 60px rgba(0,0,0,.2);
+}
+.companyCard h3 { margin: 10px 0 0; font-size: 26px; }
+.companyMetrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.branchGrid {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.branchCard {
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: #073c46;
+  box-shadow: 0 18px 44px rgba(0,0,0,.16);
+}
+.branchCardHeader { min-height: 82px; }
+.branchCardHeader > span { color: #d4af37; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; font-weight: 850; }
+.branchCardHeader h3 { margin: 9px 0 18px; font-size: 22px; line-height: 1.2; }
+.metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 0;
+  border-top: 1px solid rgba(255,255,255,.09);
+}
+.metric span { color: #aac0c5; }
+.metric strong { color: #f8fafc; font-size: 18px; text-align: right; }
+.metricEmphasis strong { color: #f1c84a; font-size: 21px; }
+.metricEmphasis span { color: #e4c45b; }
+
+@media (max-width: 980px) {
+  .branchGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .companyCard { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .dashboardHeading { margin-top: 24px; }
+  .companyMetrics { grid-template-columns: 1fr; }
+  .branchGrid { grid-template-columns: 1fr; }
+  .companyCard, .branchCard { padding: 21px; }
+  .headerActions { gap: 9px; }
+  .headerActions .secondaryButton { min-height: 42px; padding: 0 13px; }
+  .userBadge { display: none; }
+}
