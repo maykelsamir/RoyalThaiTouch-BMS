@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -25,6 +25,9 @@ class DailyRevenue(Base):
     business_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 0), default=0, nullable=False)
     notes: Mapped[str] = mapped_column(String(1000), default="", nullable=False)
+    report_image: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False, index=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users_v2.id", ondelete="SET NULL"), nullable=True)
     approved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
