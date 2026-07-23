@@ -7,10 +7,11 @@ from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.daily_approval import router as daily_approval_router
 from app.api.routes.daily_revenue import router as daily_revenue_router
 from app.api.routes.month_status import router as month_status_router
+from app.api.routes.monthly_expenses import router as monthly_expenses_router
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
-from app.models.finance import Branch, DailyRevenue, Expense  # noqa: F401
+from app.models.finance import Branch, DailyRevenue, Expense, MonthlyExpense  # noqa: F401
 from app.models.user import User  # noqa: F401
 
 settings = get_settings()
@@ -32,6 +33,7 @@ app.include_router(dashboard_router, prefix="/api")
 app.include_router(daily_revenue_router, prefix="/api")
 app.include_router(month_status_router, prefix="/api")
 app.include_router(daily_approval_router, prefix="/api")
+app.include_router(monthly_expenses_router, prefix="/api")
 
 
 @app.on_event("startup")
