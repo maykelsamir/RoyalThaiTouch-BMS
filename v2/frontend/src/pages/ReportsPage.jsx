@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, apiDownload } from '../api/client'
+import './ReportsPage.css'
 
 function isoDate(date) {
   return date.toISOString().slice(0, 10)
