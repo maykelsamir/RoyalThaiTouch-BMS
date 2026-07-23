@@ -138,6 +138,9 @@ def startup() -> None:
             connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS notes VARCHAR(2000) NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"))
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_branches_v2_code_nonempty ON branches_v2 (LOWER(code)) WHERE code <> ''"))
+            connection.execute(text("ALTER TABLE employees_v2 ADD COLUMN IF NOT EXISTS id_card_front TEXT NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE employees_v2 ADD COLUMN IF NOT EXISTS id_card_back TEXT NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE employees_v2 ADD COLUMN IF NOT EXISTS passport_photo TEXT NOT NULL DEFAULT ''"))
 
 
 @app.get("/health")
