@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 
 class BranchWrite(BaseModel):
