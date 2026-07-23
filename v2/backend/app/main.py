@@ -8,6 +8,7 @@ from app.api.routes.branches import router as branches_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.daily_approval import router as daily_approval_router
 from app.api.routes.daily_revenue import router as daily_revenue_router
+from app.api.routes.hr import router as hr_router
 from app.api.routes.month_status import router as month_status_router
 from app.api.routes.monthly_expenses import router as monthly_expenses_router
 from app.api.routes.reports import router as reports_router
@@ -18,6 +19,7 @@ from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.models.audit import AuditLog  # noqa: F401
 from app.models.finance import Branch, DailyRevenue, Expense, MonthlyExpense  # noqa: F401
+from app.models.hr import Employee  # noqa: F401
 from app.models.user import RoleProfile, User  # noqa: F401
 
 settings = get_settings()
@@ -101,6 +103,7 @@ app.include_router(reports_router, prefix="/api")
 app.include_router(user_admin_router, prefix="/api")
 app.include_router(audit_router, prefix="/api")
 app.include_router(branches_router, prefix="/api")
+app.include_router(hr_router, prefix="/api")
 
 
 @app.on_event("startup")
