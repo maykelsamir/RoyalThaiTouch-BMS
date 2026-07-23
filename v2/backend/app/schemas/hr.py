@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -19,6 +20,7 @@ class EmployeeWrite(BaseModel):
     hire_date: date | None = None
     contract_type: str = Field(default="Full Time", max_length=60)
     salary: float = Field(default=0, ge=0)
+    salary_currency: Literal["IQD", "USD"] = "IQD"
     status: str = Field(default="Active", max_length=30)
     photo: str = ""
     id_card_front: str = ""
