@@ -5,6 +5,7 @@ from sqlalchemy import text
 from app.api.routes.auth import router as auth_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.daily_revenue import router as daily_revenue_router
+from app.api.routes.month_status import router as month_status_router
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
@@ -28,6 +29,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(daily_revenue_router, prefix="/api")
+app.include_router(month_status_router, prefix="/api")
 
 
 @app.on_event("startup")
