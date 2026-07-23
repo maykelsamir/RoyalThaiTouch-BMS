@@ -40,6 +40,23 @@ class DailyRevenue(Base):
     branch: Mapped[Branch] = relationship()
 
 
+class MonthlyExpense(Base):
+    __tablename__ = "monthly_expenses_v2"
+    __table_args__ = (UniqueConstraint("branch_id", "year", "month", name="uq_v2_monthly_expense_branch_period"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches_v2.id", ondelete="CASCADE"), index=True, nullable=False)
+    year: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    month: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 0), default=0, nullable=False)
+    notes: Mapped[str] = mapped_column(String(1000), default="", nullable=False)
+    updated_by: Mapped[int | None] = mapped_column(ForeignKey("users_v2.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    branch: Mapped[Branch] = relationship()
+
+
 class Expense(Base):
     __tablename__ = "expenses_v2"
 
