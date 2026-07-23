@@ -4,6 +4,7 @@ from sqlalchemy import select, text
 
 from app.api.routes.audit import router as audit_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.branches import router as branches_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.daily_approval import router as daily_approval_router
 from app.api.routes.daily_revenue import router as daily_revenue_router
@@ -46,7 +47,7 @@ def _audit_identity(request: Request, db):
 
 def _request_action(method: str, path: str) -> str:
     last = path.rstrip("/").split("/")[-1].replace("-", "_")
-    if last in {"approve", "reject", "logout", "login", "setup", "excel", "pdf", "csv", "reset_password"}:
+    if last in {"approve", "reject", "logout", "login", "setup", "excel", "pdf", "csv", "reset_password", "status"}:
         return last
     return {"POST": "create", "PUT": "update", "PATCH": "update", "DELETE": "delete"}.get(method, "view")
 
@@ -99,6 +100,7 @@ app.include_router(monthly_expenses_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
 app.include_router(user_admin_router, prefix="/api")
 app.include_router(audit_router, prefix="/api")
+app.include_router(branches_router, prefix="/api")
 
 
 @app.on_event("startup")
@@ -119,6 +121,20 @@ def startup() -> None:
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS email VARCHAR(180) NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS phone VARCHAR(60) NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ NULL"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS code VARCHAR(40) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS country VARCHAR(100) NOT NULL DEFAULT 'Iraq'"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS city VARCHAR(120) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS address VARCHAR(500) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS phone VARCHAR(60) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS email VARCHAR(180) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(60) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS manager_name VARCHAR(160) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS opening_date DATE NULL"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS logo TEXT NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS cover_image TEXT NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS notes VARCHAR(2000) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE branches_v2 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_branches_v2_code_nonempty ON branches_v2 (LOWER(code)) WHERE code <> ''"))
 
 
 @app.get("/health")
