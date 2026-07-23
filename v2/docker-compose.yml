@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: royalthaitouch_v2
       POSTGRES_USER: rtt_v2
@@ -15,22 +16,22 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped
     environment:
-      ENVIRONMENT: development
+      ENVIRONMENT: production
       DATABASE_URL: postgresql://rtt_v2:rtt_v2_dev_password@db:5432/royalthaitouch_v2
       JWT_SECRET: change-this-before-production-with-a-long-random-value
     ports:
-      - "18000:8000"
+      - "127.0.0.1:18000:8000"
     depends_on:
       db:
         condition: service_healthy
 
   frontend:
     build: ./frontend
-    environment:
-      VITE_API_URL: http://localhost:18000/api
+    restart: unless-stopped
     ports:
-      - "15173:5173"
+      - "127.0.0.1:15173:80"
     depends_on:
       - backend
 
