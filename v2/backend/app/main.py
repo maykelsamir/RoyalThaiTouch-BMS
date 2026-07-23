@@ -141,6 +141,8 @@ def startup() -> None:
             connection.execute(text("ALTER TABLE employees_v2 ADD COLUMN IF NOT EXISTS id_card_front TEXT NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE employees_v2 ADD COLUMN IF NOT EXISTS id_card_back TEXT NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE employees_v2 ADD COLUMN IF NOT EXISTS passport_photo TEXT NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE employees_v2 ADD COLUMN IF NOT EXISTS salary_currency VARCHAR(3) NOT NULL DEFAULT 'IQD'"))
+            connection.execute(text("UPDATE employees_v2 SET salary_currency = 'IQD' WHERE salary_currency NOT IN ('IQD', 'USD') OR salary_currency IS NULL"))
 
 
 @app.get("/health")
