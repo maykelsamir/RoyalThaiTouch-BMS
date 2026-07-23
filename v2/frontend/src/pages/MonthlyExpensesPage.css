@@ -1,0 +1,16 @@
+.periodPicker { display: grid; gap: 7px; min-width: 210px; color: #dce8ea; font-size: 12px; font-weight: 800; }
+.periodPicker input, .monthlyExpenseCard input, .monthlyExpenseCard textarea { width: 100%; color: #fff; background: #032b34; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; outline: none; }
+.periodPicker input, .monthlyExpenseCard input { min-height: 48px; padding: 0 13px; }
+.monthlyExpenseCard textarea { padding: 13px; resize: vertical; }
+.periodPicker input:focus, .monthlyExpenseCard input:focus, .monthlyExpenseCard textarea:focus { border-color: #d4af37; box-shadow: 0 0 0 3px rgba(212,175,55,.11); }
+.expenseTotalCard { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 23px; margin-bottom: 20px; border-radius: 20px; background: linear-gradient(135deg, #0a4a56, #06333d); border: 1px solid rgba(212,175,55,.24); }
+.expenseTotalCard span { color: #b7c8cc; font-weight: 750; }
+.expenseTotalCard strong { color: #f4d66f; font-size: clamp(22px, 3vw, 32px); }
+.monthlyExpenseGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.monthlyExpenseCard { display: grid; gap: 16px; padding: 23px; border-radius: 21px; background: #073c46; border: 1px solid rgba(255,255,255,.09); }
+.monthlyExpenseCard label { display: grid; gap: 8px; color: #dce8ea; font-size: 13px; font-weight: 750; }
+.monthlyExpenseCard input:disabled, .monthlyExpenseCard textarea:disabled { opacity: .75; cursor: not-allowed; }
+.expenseCardFooter { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 4px; }
+.expenseCardFooter > strong { color: #f4d66f; font-size: 19px; }
+@media (max-width: 900px) { .monthlyExpenseGrid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .periodPicker { width: 100%; } .expenseTotalCard, .expenseCardFooter { align-items: stretch; flex-direction: column; } .expenseCardFooter .primaryButton { width: 100%; } }
