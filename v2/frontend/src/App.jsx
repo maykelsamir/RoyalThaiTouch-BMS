@@ -4,9 +4,22 @@ import './styles.css'
 
 const emptyCredentials = { username: '', password: '' }
 
-function Brand() {
+const navigation = [
+  { id: 'dashboard', label: 'Dashboard', icon: '⌂' },
+  { id: 'daily-revenue', label: 'Daily Revenue', icon: '↗' },
+  { id: 'expenses', label: 'Expenses', icon: '▤' },
+  { id: 'reports', label: 'Financial Reports', icon: '▥' },
+  { id: 'month-status', label: 'Month Entry Status', icon: '◫' },
+  { id: 'approvals', label: 'Daily Approval', icon: '✓' },
+  { id: 'branches', label: 'Branches', icon: '◇' },
+  { id: 'users', label: 'Users', icon: '♙' },
+  { id: 'permissions', label: 'Roles & Permissions', icon: '⌘' },
+  { id: 'backup', label: 'Backup', icon: '↓' },
+]
+
+function Brand({ compact = false }) {
   return (
-    <div className="brandBlock">
+    <div className={`brandBlock ${compact ? 'brandCompact' : ''}`}>
       <div className="brandMark">RT</div>
       <div>
         <h1>Royal Thai Touch</h1>
@@ -17,7 +30,7 @@ function Brand() {
 }
 
 function formatIQD(value) {
-  return `IQD ${Number(value || 0).toLocaleString('en-US')}`
+  return `${Number(value || 0).toLocaleString('en-US')} IQD`
 }
 
 function AuthCard({ initialized, onAuthenticated }) {
@@ -72,7 +85,7 @@ function Metric({ label, value, emphasis = false }) {
   return <div className={`metric ${emphasis ? 'metricEmphasis' : ''}`}><span>{label}</span><strong>{formatIQD(value)}</strong></div>
 }
 
-function Dashboard({ user, onLogout }) {
+function DashboardPage() {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
@@ -92,23 +105,15 @@ function Dashboard({ user, onLogout }) {
   useEffect(() => { loadDashboard() }, [])
 
   return (
-    <main className="appPage">
-      <header className="appHeader">
-        <Brand />
-        <div className="headerActions">
-          <button className="secondaryButton" onClick={loadDashboard} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh'}</button>
-          <div className="userBadge"><strong>{user.username}</strong><span>{user.role}</span></div>
-          <button className="secondaryButton" onClick={onLogout}>Logout</button>
-        </div>
-      </header>
-
-      <section className="dashboardHeading">
+    <>
+      <div className="pageTitleRow">
         <div>
           <span className="eyebrow">Yesterday Performance</span>
-          <h2>Branch Financial Dashboard</h2>
+          <h2>Financial Dashboard</h2>
           <p>{data ? `Business date: ${data.business_date}` : 'Loading previous-day financial results…'}</p>
         </div>
-      </section>
+        <button className="secondaryButton" onClick={loadDashboard} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh'}</button>
+      </div>
 
       {error && <div className="dashboardAlert">{error}</div>}
 
@@ -135,7 +140,74 @@ function Dashboard({ user, onLogout }) {
           </section>
         </>
       )}
-    </main>
+    </>
+  )
+}
+
+const pageCopy = {
+  'daily-revenue': ['Daily Revenue', 'Enter and submit branch revenue securely.'],
+  expenses: ['Expenses', 'Record and review branch expenses.'],
+  reports: ['Financial Reports', 'Daily, monthly, Excel, and PDF reporting.'],
+  'month-status': ['Month Entry Status', 'Monitor daily revenue completion across all branches.'],
+  approvals: ['Daily Approval', 'Review submitted revenue and attached paper reports.'],
+  branches: ['Branches', 'Manage centers and branch access.'],
+  users: ['Users', 'Manage users, roles, and active accounts.'],
+  permissions: ['Roles & Permissions', 'Control access to every ERP operation.'],
+  backup: ['Backup', 'Create and review protected database backups.'],
+}
+
+function PlaceholderPage({ page }) {
+  const [title, description] = pageCopy[page]
+  return (
+    <section className="placeholderPanel">
+      <span className="eyebrow">Royal Thai Touch ERP</span>
+      <h2>{title}</h2>
+      <p>{description}</p>
+      <div className="comingSoon">Module foundation is ready. Business forms and API integration are the next implementation step.</div>
+    </section>
+  )
+}
+
+function ApplicationShell({ user, onLogout }) {
+  const [page, setPage] = useState('dashboard')
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  function navigate(nextPage) {
+    setPage(nextPage)
+    setMobileOpen(false)
+  }
+
+  return (
+    <div className="shell">
+      <aside className={`sidebar ${mobileOpen ? 'sidebarOpen' : ''}`}>
+        <div className="sidebarBrand"><Brand compact /></div>
+        <nav className="sideNav">
+          {navigation.map((item) => (
+            <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => navigate(item.id)}>
+              <span className="navIcon">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebarFooter">
+          <div className="sidebarUser"><strong>{user.username}</strong><span>{user.role}</span></div>
+          <button className="logoutButton" onClick={onLogout}>Logout</button>
+        </div>
+      </aside>
+
+      {mobileOpen && <button className="sidebarBackdrop" aria-label="Close menu" onClick={() => setMobileOpen(false)} />}
+
+      <main className="workspace">
+        <header className="topbar">
+          <button className="menuButton" onClick={() => setMobileOpen(true)} aria-label="Open menu">☰</button>
+          <div><strong>{page === 'dashboard' ? 'Dashboard' : pageCopy[page][0]}</strong><span>Royal Thai Touch ERP v2.0</span></div>
+          <div className="topUser"><strong>{user.username}</strong><span>{user.role}</span></div>
+        </header>
+        <div className="contentArea">
+          {page === 'dashboard' ? <DashboardPage /> : <PlaceholderPage page={page} />}
+        </div>
+      </main>
+    </div>
   )
 }
 
@@ -174,5 +246,5 @@ export default function App() {
   if (loading) return <main className="loadingPage"><div className="loader"/><p>Loading Royal Thai Touch ERP…</p></main>
   if (startupError) return <main className="loadingPage"><div className="errorCard"><h2>Unable to connect to ERP v2</h2><p>{startupError}</p><button className="primaryButton" onClick={() => window.location.reload()}>Retry</button></div></main>
   if (!user) return <AuthCard initialized={initialized} onAuthenticated={(authenticatedUser) => { setInitialized(true); setUser(authenticatedUser) }} />
-  return <Dashboard user={user} onLogout={logout} />
+  return <ApplicationShell user={user} onLogout={logout} />
 }
