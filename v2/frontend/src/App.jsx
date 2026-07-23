@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, clearTokens, getAccessToken, getRefreshToken, saveTokens } from './api/client'
+import DailyApprovalPage from './pages/DailyApprovalPage'
 import DailyRevenuePage from './pages/DailyRevenuePage'
 import MonthStatusPage from './pages/MonthStatusPage'
 import './styles.css'
@@ -61,7 +62,6 @@ function DashboardPage() {
 
 const pageCopy = {
   expenses: ['Expenses', 'Record and review branch expenses.'], reports: ['Financial Reports', 'Daily, monthly, Excel, and PDF reporting.'],
-  approvals: ['Daily Approval', 'Review submitted revenue and attached paper reports.'],
   branches: ['Branches', 'Manage centers and branch access.'], users: ['Users', 'Manage users, roles, and active accounts.'],
   permissions: ['Roles & Permissions', 'Control access to every ERP operation.'], backup: ['Backup', 'Create and review protected database backups.'],
 }
@@ -75,11 +75,13 @@ function ApplicationShell({ user, onLogout }) {
   const [page, setPage] = useState('dashboard')
   const [mobileOpen, setMobileOpen] = useState(false)
   function navigate(nextPage) { setPage(nextPage); setMobileOpen(false) }
-  const pageTitle = page === 'dashboard' ? 'Dashboard' : page === 'daily-revenue' ? 'Daily Revenue' : page === 'month-status' ? 'Month Entry Status' : pageCopy[page][0]
+  const titles = { dashboard: 'Dashboard', 'daily-revenue': 'Daily Revenue', 'month-status': 'Month Entry Status', approvals: 'Daily Approval' }
+  const pageTitle = titles[page] || pageCopy[page][0]
   let pageContent
   if (page === 'dashboard') pageContent = <DashboardPage />
   else if (page === 'daily-revenue') pageContent = <DailyRevenuePage />
   else if (page === 'month-status') pageContent = <MonthStatusPage />
+  else if (page === 'approvals') pageContent = <DailyApprovalPage />
   else pageContent = <PlaceholderPage page={page} />
 
   return <div className="shell"><aside className={`sidebar ${mobileOpen ? 'sidebarOpen' : ''}`}><div className="sidebarBrand"><Brand compact /></div><nav className="sideNav">{navigation.map((item) => <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => navigate(item.id)}><span className="navIcon">{item.icon}</span><span>{item.label}</span></button>)}</nav><div className="sidebarFooter"><div className="sidebarUser"><strong>{user.username}</strong><span>{user.role}</span></div><button className="logoutButton" onClick={onLogout}>Logout</button></div></aside>{mobileOpen && <button className="sidebarBackdrop" aria-label="Close menu" onClick={() => setMobileOpen(false)} />}<main className="workspace"><header className="topbar"><button className="menuButton" onClick={() => setMobileOpen(true)} aria-label="Open menu">☰</button><div><strong>{pageTitle}</strong><span>Royal Thai Touch ERP v2.0</span></div><div className="topUser"><strong>{user.username}</strong><span>{user.role}</span></div></header><div className="contentArea">{pageContent}</div></main></div>
