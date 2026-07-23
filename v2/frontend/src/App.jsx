@@ -3,13 +3,14 @@ import { api, clearTokens, getAccessToken, getRefreshToken, saveTokens } from '.
 import DailyApprovalPage from './pages/DailyApprovalPage'
 import DailyRevenuePage from './pages/DailyRevenuePage'
 import MonthStatusPage from './pages/MonthStatusPage'
+import MonthlyExpensesPage from './pages/MonthlyExpensesPage'
 import './styles.css'
 
 const emptyCredentials = { username: '', password: '' }
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: '⌂' },
   { id: 'daily-revenue', label: 'Daily Revenue', icon: '↗' },
-  { id: 'expenses', label: 'Expenses', icon: '▤' },
+  { id: 'expenses', label: 'Monthly Expenses', icon: '▤' },
   { id: 'reports', label: 'Financial Reports', icon: '▥' },
   { id: 'month-status', label: 'Month Entry Status', icon: '◫' },
   { id: 'approvals', label: 'Daily Approval', icon: '✓' },
@@ -61,7 +62,7 @@ function DashboardPage() {
 }
 
 const pageCopy = {
-  expenses: ['Expenses', 'Record and review branch expenses.'], reports: ['Financial Reports', 'Daily, monthly, Excel, and PDF reporting.'],
+  reports: ['Financial Reports', 'Daily, monthly, Excel, and PDF reporting.'],
   branches: ['Branches', 'Manage centers and branch access.'], users: ['Users', 'Manage users, roles, and active accounts.'],
   permissions: ['Roles & Permissions', 'Control access to every ERP operation.'], backup: ['Backup', 'Create and review protected database backups.'],
 }
@@ -75,11 +76,12 @@ function ApplicationShell({ user, onLogout }) {
   const [page, setPage] = useState('dashboard')
   const [mobileOpen, setMobileOpen] = useState(false)
   function navigate(nextPage) { setPage(nextPage); setMobileOpen(false) }
-  const titles = { dashboard: 'Dashboard', 'daily-revenue': 'Daily Revenue', 'month-status': 'Month Entry Status', approvals: 'Daily Approval' }
+  const titles = { dashboard: 'Dashboard', 'daily-revenue': 'Daily Revenue', expenses: 'Monthly Expenses', 'month-status': 'Month Entry Status', approvals: 'Daily Approval' }
   const pageTitle = titles[page] || pageCopy[page][0]
   let pageContent
   if (page === 'dashboard') pageContent = <DashboardPage />
   else if (page === 'daily-revenue') pageContent = <DailyRevenuePage />
+  else if (page === 'expenses') pageContent = <MonthlyExpensesPage user={user} />
   else if (page === 'month-status') pageContent = <MonthStatusPage />
   else if (page === 'approvals') pageContent = <DailyApprovalPage />
   else pageContent = <PlaceholderPage page={page} />
