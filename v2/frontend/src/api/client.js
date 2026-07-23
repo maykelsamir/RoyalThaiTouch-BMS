@@ -1,4 +1,4 @@
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:18000/api`
+const API_BASE = '/api'
 
 const ACCESS_KEY = 'rtt_v2_access_token'
 const REFRESH_KEY = 'rtt_v2_refresh_token'
