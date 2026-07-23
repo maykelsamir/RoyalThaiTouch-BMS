@@ -62,4 +62,30 @@ export async function api(path, options = {}, retry = true) {
   return parseResponse(response)
 }
 
+export async function apiDownload(path, fallbackName, retry = true) {
+  const headers = new Headers()
+  const accessToken = getAccessToken()
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+  const response = await fetch(`${API_BASE}${path}`, { headers })
+  if (response.status === 401 && retry && getRefreshToken()) {
+    await refreshSession()
+    return apiDownload(path, fallbackName, false)
+  }
+  if (!response.ok) {
+    const type = response.headers.get('content-type') || ''
+    const payload = type.includes('application/json') ? await response.json() : await response.text()
+    throw new Error(typeof payload === 'object' ? payload.detail : payload)
+  }
+  const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') || ''
+  const match = disposition.match(/filename="?([^";]+)"?/i)
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = match?.[1] || fallbackName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(link.href)
+}
+
 export { API_BASE }
