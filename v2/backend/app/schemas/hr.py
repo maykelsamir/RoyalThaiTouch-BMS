@@ -21,6 +21,9 @@ class EmployeeWrite(BaseModel):
     salary: float = Field(default=0, ge=0)
     status: str = Field(default="Active", max_length=30)
     photo: str = ""
+    id_card_front: str = ""
+    id_card_back: str = ""
+    passport_photo: str = ""
     notes: str = Field(default="", max_length=2000)
     active: bool = True
 
