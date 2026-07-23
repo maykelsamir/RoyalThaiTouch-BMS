@@ -57,8 +57,12 @@ def _view(employee: Employee, branch_name: str = "") -> EmployeeView:
         hire_date=employee.hire_date,
         contract_type=employee.contract_type,
         salary=float(employee.salary or 0),
+        salary_currency=employee.salary_currency or "IQD",
         status=employee.status,
         photo=employee.photo,
+        id_card_front=employee.id_card_front,
+        id_card_back=employee.id_card_back,
+        passport_photo=employee.passport_photo,
         notes=employee.notes,
         active=employee.active,
         created_at=employee.created_at,
@@ -71,14 +75,18 @@ def dashboard(current_user: User = Depends(get_current_user), db: Session = Depe
     _require(current_user, "hr.view")
     rows = list(db.scalars(select(Employee)))
     departments = len({item.department.strip().lower() for item in rows if item.department.strip()})
-    total_salary = sum(float(item.salary or 0) for item in rows if item.active)
+    payroll = {"IQD": 0.0, "USD": 0.0}
+    for item in rows:
+        if item.active:
+            currency = item.salary_currency if item.salary_currency in payroll else "IQD"
+            payroll[currency] += float(item.salary or 0)
     return {
         "total": len(rows),
         "active": sum(1 for item in rows if item.active and item.status.lower() == "active"),
         "on_leave": sum(1 for item in rows if item.status.lower() in {"vacation", "on leave"}),
         "inactive": sum(1 for item in rows if not item.active or item.status.lower() in {"resigned", "suspended", "terminated"}),
         "departments": departments,
-        "monthly_payroll": total_salary,
+        "monthly_payroll": payroll,
     }
 
 
