@@ -110,6 +110,11 @@ def _report(start: date, end: date, ids: list[int], include_unapproved: bool, db
     return FinancialReportView(date_from=start, date_to=end, generated_at=datetime.now(timezone.utc).isoformat(), company_revenue=company_revenue, company_expenses=company_expenses, company_net_profit=company_revenue - company_expenses, branches=summaries, daily_rows=daily_rows)
 
 
+def _validate_selection(show_revenue: bool, show_expenses: bool, show_profit: bool) -> None:
+    if not any((show_revenue, show_expenses, show_profit)):
+        raise HTTPException(status_code=422, detail="Select at least one financial value")
+
+
 @router.get("/branches", response_model=list[ReportBranchOption])
 def branches(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _require(current_user)
@@ -129,8 +134,21 @@ def _name(report: FinancialReportView, extension: str) -> str:
 
 
 @router.get("/export/excel")
-def excel(date_from: date, date_to: date, branch_ids: list[int] | None = Query(default=None), include_unapproved: bool = False, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def excel(
+    date_from: date,
+    date_to: date,
+    branch_ids: list[int] | None = Query(default=None),
+    include_unapproved: bool = False,
+    show_revenue: bool = True,
+    show_expenses: bool = True,
+    show_profit: bool = True,
+    show_branch_summary: bool = True,
+    show_daily_details: bool = True,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _require(current_user, "reports.export_excel")
+    _validate_selection(show_revenue, show_expenses, show_profit)
     report = _report(date_from, date_to, _branch_ids(current_user, branch_ids, db), include_unapproved, db)
     workbook = Workbook()
     summary = workbook.active
@@ -142,29 +160,75 @@ def excel(date_from: date, date_to: date, branch_ids: list[int] | None = Query(d
     summary["A1"].fill = PatternFill("solid", fgColor=dark)
     summary["A1"].alignment = Alignment(horizontal="center")
     summary.append(["Period", str(report.date_from), "to", str(report.date_to)])
-    summary.append(["Company Revenue", float(report.company_revenue), "Company Expenses", float(report.company_expenses), "Net Profit", float(report.company_net_profit)])
+
+    totals = []
+    if show_revenue:
+        totals.extend(["Company Revenue", float(report.company_revenue)])
+    if show_expenses:
+        totals.extend(["Company Expenses", float(report.company_expenses)])
+    if show_profit:
+        totals.extend(["Net Profit", float(report.company_net_profit)])
+    summary.append(totals)
     summary.append([])
-    summary.append(["Branch", "Revenue", "Allocated Expenses", "Net Profit", "Approved Days", "Missing Days"])
-    for cell in summary[5]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor=dark)
-    for item in report.branches:
-        summary.append([item.branch_name, float(item.revenue), float(item.expenses), float(item.net_profit), item.approved_entries, item.missing_days])
-    details = workbook.create_sheet("Daily Details")
-    details.append(["Date", "Branch", "Revenue", "Allocated Expense", "Net Profit", "Status"])
-    for cell in details[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor=dark)
-    for item in report.daily_rows:
-        details.append([item.business_date, item.branch_name, float(item.revenue), float(item.allocated_expense), float(item.net_profit), item.entry_status])
-    details.freeze_panes = "A2"
-    details.auto_filter.ref = details.dimensions
+
+    if show_branch_summary:
+        headers = ["Branch"]
+        if show_revenue:
+            headers.append("Revenue")
+        if show_expenses:
+            headers.append("Allocated Expenses")
+        if show_profit:
+            headers.append("Net Profit")
+        headers.extend(["Approved Days", "Missing Days"])
+        summary.append(headers)
+        header_row = summary.max_row
+        for cell in summary[header_row]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor=dark)
+        for item in report.branches:
+            row = [item.branch_name]
+            if show_revenue:
+                row.append(float(item.revenue))
+            if show_expenses:
+                row.append(float(item.expenses))
+            if show_profit:
+                row.append(float(item.net_profit))
+            row.extend([item.approved_entries, item.missing_days])
+            summary.append(row)
+
+    if show_daily_details:
+        details = workbook.create_sheet("Daily Details")
+        headers = ["Date", "Branch"]
+        if show_revenue:
+            headers.append("Revenue")
+        if show_expenses:
+            headers.append("Allocated Expense")
+        if show_profit:
+            headers.append("Net Profit")
+        headers.append("Status")
+        details.append(headers)
+        for cell in details[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor=dark)
+        for item in report.daily_rows:
+            row = [item.business_date, item.branch_name]
+            if show_revenue:
+                row.append(float(item.revenue))
+            if show_expenses:
+                row.append(float(item.allocated_expense))
+            if show_profit:
+                row.append(float(item.net_profit))
+            row.append(item.entry_status)
+            details.append(row)
+        details.freeze_panes = "A2"
+        details.auto_filter.ref = details.dimensions
+
     for sheet in workbook.worksheets:
         for column in sheet.columns:
             sheet.column_dimensions[get_column_letter(column[0].column)].width = min(max(len(str(cell.value or "")) for cell in column) + 3, 38)
         for row in sheet.iter_rows():
             for cell in row:
-                if cell.column in (2, 3, 4, 5) and isinstance(cell.value, (int, float)):
+                if isinstance(cell.value, (int, float)) and cell.column > 1:
                     cell.number_format = '#,##0 "IQD"'
     output = BytesIO()
     workbook.save(output)
@@ -173,24 +237,90 @@ def excel(date_from: date, date_to: date, branch_ids: list[int] | None = Query(d
 
 
 @router.get("/export/pdf")
-def pdf(date_from: date, date_to: date, branch_ids: list[int] | None = Query(default=None), include_unapproved: bool = False, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def pdf(
+    date_from: date,
+    date_to: date,
+    branch_ids: list[int] | None = Query(default=None),
+    include_unapproved: bool = False,
+    show_revenue: bool = True,
+    show_expenses: bool = True,
+    show_profit: bool = True,
+    show_branch_summary: bool = True,
+    show_daily_details: bool = True,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _require(current_user, "reports.export_pdf")
+    _validate_selection(show_revenue, show_expenses, show_profit)
     report = _report(date_from, date_to, _branch_ids(current_user, branch_ids, db), include_unapproved, db)
     output = BytesIO()
     document = SimpleDocTemplate(output, pagesize=landscape(A4), rightMargin=12 * mm, leftMargin=12 * mm, topMargin=10 * mm, bottomMargin=10 * mm)
     styles = getSampleStyleSheet()
     story = [Paragraph("Royal Thai Touch ERP - Advanced Financial Report", styles["Title"]), Paragraph(f"Period: {report.date_from} to {report.date_to}", styles["Normal"]), Spacer(1, 8)]
-    totals = Table([["Company Revenue", "Company Expenses", "Net Profit"], [f"{report.company_revenue:,.0f} IQD", f"{report.company_expenses:,.0f} IQD", f"{report.company_net_profit:,.0f} IQD"]], colWidths=[80 * mm] * 3)
+
+    total_headers = []
+    total_values = []
+    if show_revenue:
+        total_headers.append("Company Revenue"); total_values.append(f"{report.company_revenue:,.0f} IQD")
+    if show_expenses:
+        total_headers.append("Company Expenses"); total_values.append(f"{report.company_expenses:,.0f} IQD")
+    if show_profit:
+        total_headers.append("Net Profit"); total_values.append(f"{report.company_net_profit:,.0f} IQD")
+    width = 240 * mm / max(len(total_headers), 1)
+    totals = Table([total_headers, total_values], colWidths=[width] * len(total_headers))
     totals.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#073C46")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("GRID", (0, 0), (-1, -1), .5, colors.grey), ("PADDING", (0, 0), (-1, -1), 7)]))
-    story.extend([totals, Spacer(1, 10), Paragraph("Branch Summary", styles["Heading2"])])
-    summary_data = [["Branch", "Revenue", "Expenses", "Net Profit", "Approved", "Missing"]] + [[item.branch_name, f"{item.revenue:,.0f}", f"{item.expenses:,.0f}", f"{item.net_profit:,.0f}", item.approved_entries, item.missing_days] for item in report.branches]
-    summary = Table(summary_data, repeatRows=1, colWidths=[65 * mm, 42 * mm, 42 * mm, 42 * mm, 27 * mm, 27 * mm])
-    summary.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#073C46")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("GRID", (0, 0), (-1, -1), .4, colors.grey), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#EEF5F6")]), ("ALIGN", (1, 1), (-1, -1), "RIGHT"), ("FONTSIZE", (0, 0), (-1, -1), 8)]))
-    story.extend([summary, Spacer(1, 10), Paragraph("Daily Details", styles["Heading2"])])
-    detail_data = [["Date", "Branch", "Revenue", "Expense", "Net Profit", "Status"]] + [[str(item.business_date), item.branch_name, f"{item.revenue:,.0f}", f"{item.allocated_expense:,.0f}", f"{item.net_profit:,.0f}", item.entry_status.title()] for item in report.daily_rows]
-    details = Table(detail_data, repeatRows=1, colWidths=[30 * mm, 62 * mm, 38 * mm, 38 * mm, 38 * mm, 30 * mm])
-    details.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#073C46")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("GRID", (0, 0), (-1, -1), .3, colors.grey), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#EEF5F6")]), ("ALIGN", (2, 1), (4, -1), "RIGHT"), ("FONTSIZE", (0, 0), (-1, -1), 7)]))
-    story.append(details)
+    story.extend([totals, Spacer(1, 10)])
+
+    if show_branch_summary:
+        story.append(Paragraph("Branch Summary", styles["Heading2"]))
+        headers = ["Branch"]
+        if show_revenue:
+            headers.append("Revenue")
+        if show_expenses:
+            headers.append("Expenses")
+        if show_profit:
+            headers.append("Net Profit")
+        headers.extend(["Approved", "Missing"])
+        rows = [headers]
+        for item in report.branches:
+            row = [item.branch_name]
+            if show_revenue:
+                row.append(f"{item.revenue:,.0f}")
+            if show_expenses:
+                row.append(f"{item.expenses:,.0f}")
+            if show_profit:
+                row.append(f"{item.net_profit:,.0f}")
+            row.extend([item.approved_entries, item.missing_days])
+            rows.append(row)
+        summary = Table(rows, repeatRows=1)
+        summary.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#073C46")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("GRID", (0, 0), (-1, -1), .4, colors.grey), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#EEF5F6")]), ("ALIGN", (1, 1), (-1, -1), "RIGHT"), ("FONTSIZE", (0, 0), (-1, -1), 8)]))
+        story.extend([summary, Spacer(1, 10)])
+
+    if show_daily_details:
+        story.append(Paragraph("Daily Details", styles["Heading2"]))
+        headers = ["Date", "Branch"]
+        if show_revenue:
+            headers.append("Revenue")
+        if show_expenses:
+            headers.append("Expense")
+        if show_profit:
+            headers.append("Net Profit")
+        headers.append("Status")
+        rows = [headers]
+        for item in report.daily_rows:
+            row = [str(item.business_date), item.branch_name]
+            if show_revenue:
+                row.append(f"{item.revenue:,.0f}")
+            if show_expenses:
+                row.append(f"{item.allocated_expense:,.0f}")
+            if show_profit:
+                row.append(f"{item.net_profit:,.0f}")
+            row.append(item.entry_status.title())
+            rows.append(row)
+        details = Table(rows, repeatRows=1)
+        details.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#073C46")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("GRID", (0, 0), (-1, -1), .3, colors.grey), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#EEF5F6")]), ("ALIGN", (2, 1), (-1, -1), "RIGHT"), ("FONTSIZE", (0, 0), (-1, -1), 7)]))
+        story.append(details)
+
     document.build(story)
     output.seek(0)
     return StreamingResponse(output, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{_name(report, "pdf")}"'})
