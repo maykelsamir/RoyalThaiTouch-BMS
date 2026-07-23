@@ -25,6 +25,7 @@ class Employee(Base):
     hire_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     contract_type: Mapped[str] = mapped_column(String(60), default="Full Time", nullable=False)
     salary: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
+    salary_currency: Mapped[str] = mapped_column(String(3), default="IQD", nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="Active", index=True, nullable=False)
     photo: Mapped[str] = mapped_column(Text, default="", nullable=False)
     id_card_front: Mapped[str] = mapped_column(Text, default="", nullable=False)
