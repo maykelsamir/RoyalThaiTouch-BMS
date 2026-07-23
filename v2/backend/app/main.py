@@ -8,21 +8,18 @@ from app.api.routes.daily_approval import router as daily_approval_router
 from app.api.routes.daily_revenue import router as daily_revenue_router
 from app.api.routes.month_status import router as month_status_router
 from app.api.routes.monthly_expenses import router as monthly_expenses_router
+from app.api.routes.user_admin import router as user_admin_router
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
 from app.models.finance import Branch, DailyRevenue, Expense, MonthlyExpense  # noqa: F401
-from app.models.user import User  # noqa: F401
+from app.models.user import RoleProfile, User  # noqa: F401
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="2.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:15173",
-        "http://127.0.0.1:15173",
-    ],
+    allow_origins=["http://localhost:5173", "http://localhost:15173", "http://127.0.0.1:15173"],
     allow_origin_regex=r"https?://.*:15173",
     allow_credentials=True,
     allow_methods=["*"],
@@ -34,6 +31,7 @@ app.include_router(daily_revenue_router, prefix="/api")
 app.include_router(month_status_router, prefix="/api")
 app.include_router(daily_approval_router, prefix="/api")
 app.include_router(monthly_expenses_router, prefix="/api")
+app.include_router(user_admin_router, prefix="/api")
 
 
 @app.on_event("startup")
@@ -50,6 +48,10 @@ def startup() -> None:
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ NULL"))
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR(1000) NOT NULL DEFAULT ''"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_daily_revenues_v2_status ON daily_revenues_v2 (status)"))
+            connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS full_name VARCHAR(160) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS email VARCHAR(180) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS phone VARCHAR(60) NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ NULL"))
 
 
 @app.get("/health")
