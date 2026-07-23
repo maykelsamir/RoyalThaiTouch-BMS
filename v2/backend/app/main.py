@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.dashboard import router as dashboard_router
+from app.api.routes.daily_approval import router as daily_approval_router
 from app.api.routes.daily_revenue import router as daily_revenue_router
 from app.api.routes.month_status import router as month_status_router
 from app.core.config import get_settings
@@ -30,6 +31,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(daily_revenue_router, prefix="/api")
 app.include_router(month_status_router, prefix="/api")
+app.include_router(daily_approval_router, prefix="/api")
 
 
 @app.on_event("startup")
@@ -40,6 +42,11 @@ def startup() -> None:
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS report_image TEXT NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'draft'"))
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS created_by INTEGER NULL REFERENCES users_v2(id) ON DELETE SET NULL"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS approved_by INTEGER NULL REFERENCES users_v2(id) ON DELETE SET NULL"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ NULL"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS rejected_by INTEGER NULL REFERENCES users_v2(id) ON DELETE SET NULL"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ NULL"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR(1000) NOT NULL DEFAULT ''"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_daily_revenues_v2_status ON daily_revenues_v2 (status)"))
 
 
