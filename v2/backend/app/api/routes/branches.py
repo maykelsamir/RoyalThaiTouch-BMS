@@ -1,11 +1,13 @@
 import re
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models.audit import AuditLog
 from app.models.finance import Branch, DailyRevenue, Expense, MonthlyExpense
 from app.models.user import User
 from app.schemas.branches import BranchStats, BranchView, BranchWrite
@@ -66,6 +68,23 @@ def _view(branch: Branch, users: list[User], revenue_count: int, expense_count: 
     )
 
 
+def _month_key(year: int, month: int) -> str:
+    return f"{year:04d}-{month:02d}"
+
+
+def _previous_months(count: int = 12) -> list[tuple[int, int]]:
+    today = date.today()
+    year, month = today.year, today.month
+    rows: list[tuple[int, int]] = []
+    for _ in range(count):
+        rows.append((year, month))
+        month -= 1
+        if month == 0:
+            month = 12
+            year -= 1
+    return list(reversed(rows))
+
+
 @router.get("", response_model=list[BranchView])
 def list_branches(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _require(current_user, "branches.view")
@@ -87,6 +106,92 @@ def stats(current_user: User = Depends(get_current_user), db: Session = Depends(
         inactive=sum(1 for item in rows if not item.active),
         managers=len({item.manager_name.strip().lower() for item in rows if item.manager_name.strip()}),
     )
+
+
+@router.get("/{branch_id}/profile")
+def branch_profile(branch_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require(current_user, "branches.view")
+    branch = db.get(Branch, branch_id)
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch not found")
+
+    users = [user for user in db.scalars(select(User).order_by(User.full_name, User.username)) if branch_id in (user.allowed_branch_ids or [])]
+    revenues = list(db.scalars(select(DailyRevenue).where(DailyRevenue.branch_id == branch_id).order_by(DailyRevenue.business_date)))
+    monthly_expenses = list(db.scalars(select(MonthlyExpense).where(MonthlyExpense.branch_id == branch_id)))
+    legacy_expenses = list(db.scalars(select(Expense).where(Expense.branch_id == branch_id)))
+
+    total_revenue = sum(int(item.amount or 0) for item in revenues)
+    total_expenses = sum(int(item.amount or 0) for item in monthly_expenses) + sum(int(item.amount or 0) for item in legacy_expenses)
+    pending = sum(1 for item in revenues if item.status in {"submitted", "pending"})
+
+    months = _previous_months()
+    performance = {
+        _month_key(year, month): {"month": _month_key(year, month), "revenue": 0, "expenses": 0, "net_profit": 0}
+        for year, month in months
+    }
+    for item in revenues:
+        key = _month_key(item.business_date.year, item.business_date.month)
+        if key in performance:
+            performance[key]["revenue"] += int(item.amount or 0)
+    for item in monthly_expenses:
+        key = _month_key(item.year, item.month)
+        if key in performance:
+            performance[key]["expenses"] += int(item.amount or 0)
+    for item in legacy_expenses:
+        key = _month_key(item.business_date.year, item.business_date.month)
+        if key in performance:
+            performance[key]["expenses"] += int(item.amount or 0)
+    for row in performance.values():
+        row["net_profit"] = row["revenue"] - row["expenses"]
+
+    audits = list(db.scalars(
+        select(AuditLog).where(
+            or_(
+                AuditLog.branch_id == branch_id,
+                (AuditLog.module == "branches") & (AuditLog.entity_id == str(branch_id)),
+            )
+        ).order_by(AuditLog.created_at.desc()).limit(50)
+    ))
+
+    return {
+        "branch": _view(branch, users, len(revenues), len(monthly_expenses) + len(legacy_expenses)).model_dump(mode="json"),
+        "summary": {
+            "total_revenue": total_revenue,
+            "total_expenses": total_expenses,
+            "net_profit": total_revenue - total_expenses,
+            "users": len(users),
+            "pending_approvals": pending,
+            "approved_entries": sum(1 for item in revenues if item.status == "approved" or item.approved),
+        },
+        "users": [
+            {
+                "id": user.id,
+                "username": user.username,
+                "full_name": user.full_name,
+                "role": user.role,
+                "email": user.email,
+                "phone": user.phone,
+                "active": user.active,
+                "last_login_at": user.last_login_at,
+            }
+            for user in users
+        ],
+        "performance": list(performance.values()),
+        "audit_history": [
+            {
+                "id": item.id,
+                "created_at": item.created_at,
+                "username": item.username,
+                "role": item.role,
+                "action": item.action,
+                "module": item.module,
+                "result": item.result,
+                "description": item.description,
+                "ip_address": item.ip_address,
+            }
+            for item in audits
+        ],
+    }
 
 
 @router.get("/{branch_id}", response_model=BranchView)
