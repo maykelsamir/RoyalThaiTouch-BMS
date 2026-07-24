@@ -1,3 +1,7 @@
+from calendar import monthrange
+from datetime import date
+from urllib.parse import parse_qsl, urlencode
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
@@ -53,6 +57,53 @@ def _request_action(method: str, path: str) -> str:
     if last in {"approve", "reject", "logout", "login", "setup", "excel", "pdf", "csv", "reset_password", "status"}:
         return last
     return {"POST": "create", "PUT": "update", "PATCH": "update", "DELETE": "delete"}.get(method, "view")
+
+
+def _normalize_report_month(request: Request) -> None:
+    if not request.url.path.startswith("/api/reports"):
+        return
+
+    query_items = parse_qsl(request.scope.get("query_string", b"").decode("utf-8"), keep_blank_values=True)
+    query = dict(query_items)
+    selected_value = query.get("date_from") or query.get("date_to")
+    if not selected_value:
+        return
+
+    try:
+        selected = date.fromisoformat(selected_value)
+    except ValueError:
+        return
+
+    month_start = selected.replace(day=1)
+    month_end = selected.replace(day=monthrange(selected.year, selected.month)[1])
+
+    normalized: list[tuple[str, str]] = []
+    seen_from = False
+    seen_to = False
+    for key, value in query_items:
+        if key == "date_from":
+            if not seen_from:
+                normalized.append((key, month_start.isoformat()))
+                seen_from = True
+        elif key == "date_to":
+            if not seen_to:
+                normalized.append((key, month_end.isoformat()))
+                seen_to = True
+        else:
+            normalized.append((key, value))
+
+    if not seen_from:
+        normalized.append(("date_from", month_start.isoformat()))
+    if not seen_to:
+        normalized.append(("date_to", month_end.isoformat()))
+
+    request.scope["query_string"] = urlencode(normalized, doseq=True).encode("utf-8")
+
+
+@app.middleware("http")
+async def monthly_financial_report_range(request: Request, call_next):
+    _normalize_report_month(request)
+    return await call_next(request)
 
 
 @app.middleware("http")
