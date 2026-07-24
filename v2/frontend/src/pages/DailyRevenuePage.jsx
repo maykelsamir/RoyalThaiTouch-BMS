@@ -84,7 +84,7 @@ export default function DailyRevenuePage() {
         <div>
           <span className="eyebrow">Branch Operations</span>
           <h2>Daily Revenue</h2>
-          <p>Save the branch revenue as a draft, attach the paper report, then submit it for approval.</p>
+          <p>Save the branch revenue as a draft, attach the paper report, then submit it for approval. Zero is accepted as a valid daily revenue.</p>
         </div>
         <button className="secondaryButton" onClick={load} disabled={busy}>Refresh</button>
       </div>
@@ -98,7 +98,7 @@ export default function DailyRevenuePage() {
           <div className="formGrid">
             <label>Branch<select required value={form.branch_id} onChange={(event) => setForm({ ...form, branch_id: event.target.value })}>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
             <label>Business Date<input required type="date" value={form.business_date} onChange={(event) => setForm({ ...form, business_date: event.target.value })} /></label>
-            <label className="fullField">Revenue Amount (IQD)<input required min="1" step="1" type="number" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} placeholder="0" /></label>
+            <label className="fullField">Revenue Amount (IQD)<input required min="0" step="1" type="number" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} placeholder="0" /></label>
             <label className="fullField">Notes<textarea rows="4" maxLength="1000" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Optional notes about the daily revenue" /></label>
             <label className="fullField">Paper Report Image<input accept="image/*" type="file" onChange={async (event) => {
               try { setForm({ ...form, report_image: await fileToDataUrl(event.target.files?.[0]) }) } catch (fileError) { setError(fileError.message) }
