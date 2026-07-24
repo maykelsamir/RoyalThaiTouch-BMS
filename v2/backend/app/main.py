@@ -120,6 +120,23 @@ def startup() -> None:
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ NULL"))
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR(1000) NOT NULL DEFAULT ''"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_daily_revenues_v2_status ON daily_revenues_v2 (status)"))
+            connection.execute(text("""
+                DO $$
+                DECLARE constraint_record RECORD;
+                BEGIN
+                    FOR constraint_record IN
+                        SELECT conname
+                        FROM pg_constraint
+                        WHERE conrelid = 'daily_revenues_v2'::regclass
+                          AND contype = 'c'
+                          AND pg_get_constraintdef(oid) ILIKE '%amount%'
+                    LOOP
+                        EXECUTE format('ALTER TABLE daily_revenues_v2 DROP CONSTRAINT %I', constraint_record.conname);
+                    END LOOP;
+                END $$;
+            """))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 ADD CONSTRAINT ck_daily_revenues_v2_amount_nonnegative CHECK (amount >= 0) NOT VALID"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 VALIDATE CONSTRAINT ck_daily_revenues_v2_amount_nonnegative"))
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS full_name VARCHAR(160) NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS email VARCHAR(180) NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS phone VARCHAR(60) NOT NULL DEFAULT ''"))
