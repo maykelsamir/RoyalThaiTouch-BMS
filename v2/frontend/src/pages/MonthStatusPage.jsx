@@ -11,14 +11,6 @@ const stateLabels = {
   upcoming: 'Upcoming',
 }
 
-const editableStates = [
-  { value: 'complete', label: 'Complete' },
-  { value: 'pending', label: 'Pending Approval' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'missing', label: 'Missing' },
-]
-
 function currentMonthValue() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -69,24 +61,26 @@ export default function MonthStatusPage({ user }) {
     setMonthValue(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`)
   }
 
-  async function editDay(branch, day) {
+  async function editAmount(branch, day) {
     if (!isAdmin || savingKey) return
 
-    const choices = editableStates.map((item, index) => `${index + 1}. ${item.label}`).join('\n')
-    const selected = window.prompt(
-      `Change status for ${branch.branch_name} on ${day.date}\n\nCurrent: ${stateLabels[day.state]}\n\nChoose the new status number:\n${choices}`,
+    const currentAmount = Number(day.amount || 0)
+    const entered = window.prompt(
+      `Edit daily revenue\n\nBranch: ${branch.branch_name}\nDate: ${day.date}\nCurrent amount: ${formatIQD(currentAmount)}\n\nEnter the new amount in IQD:`,
+      String(currentAmount),
     )
-    if (selected === null) return
+    if (entered === null) return
 
-    const selectedState = editableStates[Number(selected) - 1]
-    if (!selectedState) {
-      window.alert('Invalid selection. Please choose a number from 1 to 5.')
+    const normalized = entered.replace(/,/g, '').trim()
+    const newAmount = Number(normalized)
+    if (!normalized || !Number.isFinite(newAmount) || newAmount < 0) {
+      window.alert('Please enter a valid amount greater than or equal to zero.')
       return
     }
-    if (selectedState.value === day.state) return
+    if (newAmount === currentAmount) return
 
     const confirmed = window.confirm(
-      `WARNING\n\nYou are about to manually change the stored status for ${branch.branch_name} on ${day.date}.\n\nFrom: ${stateLabels[day.state]}\nTo: ${selectedState.label}\n\nThis may affect reports and completion statistics. The change will be recorded in Audit Log.\n\nPress OK to continue.`,
+      `WARNING\n\nYou are about to manually change the stored daily revenue.\n\nBranch: ${branch.branch_name}\nDate: ${day.date}\nFrom: ${formatIQD(currentAmount)}\nTo: ${formatIQD(newAmount)}\n\nThis change may affect financial reports and will be recorded in Audit Log.\n\nPress OK to confirm.`,
     )
     if (!confirmed) return
 
@@ -94,12 +88,12 @@ export default function MonthStatusPage({ user }) {
     setSavingKey(key)
     setError('')
     try {
-      await api('/month-status/override', {
+      await api('/month-status/amount', {
         method: 'PUT',
         body: JSON.stringify({
           branch_id: branch.branch_id,
           business_date: day.date,
-          state: selectedState.value,
+          amount: newAmount,
         }),
       })
       await loadStatus()
@@ -116,7 +110,7 @@ export default function MonthStatusPage({ user }) {
         <div>
           <span className="eyebrow">Daily Completion Monitor</span>
           <h2>Month Entry Status</h2>
-          <p>{isAdmin ? 'Click any day to manually change its stored status. Every change requires confirmation and is recorded in Audit Log.' : 'Track completed, pending, draft, and missing revenue entries for every branch.'}</p>
+          <p>{isAdmin ? 'Click any day to change its stored daily revenue amount. Every change requires confirmation and is recorded in Audit Log.' : 'Track completed, pending, draft, and missing revenue entries for every branch.'}</p>
         </div>
         <button className="secondaryButton" onClick={loadStatus} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
       </div>
@@ -165,12 +159,12 @@ export default function MonthStatusPage({ user }) {
                         type="button"
                         className={`calendarDay day-${day.state}${isAdmin ? ' calendarDayEditable' : ''}`}
                         key={day.date}
-                        title={`${day.date} — ${stateLabels[day.state]}${day.amount ? ` — ${formatIQD(day.amount)}` : ''}${isAdmin ? ' — Click to change' : ''}`}
-                        onClick={() => editDay(branch, day)}
+                        title={`${day.date} — ${stateLabels[day.state]} — ${formatIQD(day.amount)}${isAdmin ? ' — Click to edit amount' : ''}`}
+                        onClick={() => editAmount(branch, day)}
                         disabled={!isAdmin || savingKey === key}
                       >
                         <div className="calendarDayTop"><strong>{day.day}</strong><span>{savingKey === key ? 'Saving…' : stateLabels[day.state]}</span></div>
-                        {day.amount > 0 && <small>{formatIQD(day.amount)}</small>}
+                        <small>{formatIQD(day.amount)}</small>
                       </button>
                     )
                   })}
