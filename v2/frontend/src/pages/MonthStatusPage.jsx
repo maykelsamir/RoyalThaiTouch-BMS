@@ -11,6 +11,14 @@ const stateLabels = {
   upcoming: 'Upcoming',
 }
 
+const editableStates = [
+  { value: 'complete', label: 'Complete' },
+  { value: 'pending', label: 'Pending Approval' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'missing', label: 'Missing' },
+]
+
 function currentMonthValue() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -24,14 +32,16 @@ function SummaryCard({ label, value, className }) {
   return <div className={`monthSummaryCard ${className || ''}`}><span>{label}</span><strong>{value}</strong></div>
 }
 
-export default function MonthStatusPage() {
+export default function MonthStatusPage({ user }) {
   const [monthValue, setMonthValue] = useState(currentMonthValue())
   const [branchId, setBranchId] = useState('')
   const [branches, setBranches] = useState([])
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [savingKey, setSavingKey] = useState('')
   const [error, setError] = useState('')
 
+  const isAdmin = String(user?.role || '').toLowerCase() === 'admin'
   const [year, month] = useMemo(() => monthValue.split('-').map(Number), [monthValue])
 
   async function loadBranches() {
@@ -59,13 +69,54 @@ export default function MonthStatusPage() {
     setMonthValue(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`)
   }
 
+  async function editDay(branch, day) {
+    if (!isAdmin || savingKey) return
+
+    const choices = editableStates.map((item, index) => `${index + 1}. ${item.label}`).join('\n')
+    const selected = window.prompt(
+      `Change status for ${branch.branch_name} on ${day.date}\n\nCurrent: ${stateLabels[day.state]}\n\nChoose the new status number:\n${choices}`,
+    )
+    if (selected === null) return
+
+    const selectedState = editableStates[Number(selected) - 1]
+    if (!selectedState) {
+      window.alert('Invalid selection. Please choose a number from 1 to 5.')
+      return
+    }
+    if (selectedState.value === day.state) return
+
+    const confirmed = window.confirm(
+      `WARNING\n\nYou are about to manually change the stored status for ${branch.branch_name} on ${day.date}.\n\nFrom: ${stateLabels[day.state]}\nTo: ${selectedState.label}\n\nThis may affect reports and completion statistics. The change will be recorded in Audit Log.\n\nPress OK to continue.`,
+    )
+    if (!confirmed) return
+
+    const key = `${branch.branch_id}-${day.date}`
+    setSavingKey(key)
+    setError('')
+    try {
+      await api('/month-status/override', {
+        method: 'PUT',
+        body: JSON.stringify({
+          branch_id: branch.branch_id,
+          business_date: day.date,
+          state: selectedState.value,
+        }),
+      })
+      await loadStatus()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingKey('')
+    }
+  }
+
   return (
     <>
       <div className="pageTitleRow monthTitleRow">
         <div>
           <span className="eyebrow">Daily Completion Monitor</span>
           <h2>Month Entry Status</h2>
-          <p>Track completed, pending, draft, and missing revenue entries for every branch.</p>
+          <p>{isAdmin ? 'Click any day to manually change its stored status. Every change requires confirmation and is recorded in Audit Log.' : 'Track completed, pending, draft, and missing revenue entries for every branch.'}</p>
         </div>
         <button className="secondaryButton" onClick={loadStatus} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
       </div>
@@ -107,12 +158,22 @@ export default function MonthStatusPage() {
                 <div className="weekHeader"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
                 <div className="calendarGrid">
                   {Array.from({ length: new Date(year, month - 1, 1).getDay() }).map((_, index) => <div className="calendarBlank" key={`blank-${index}`} />)}
-                  {branch.days.map((day) => (
-                    <div className={`calendarDay day-${day.state}`} key={day.date} title={`${day.date} — ${stateLabels[day.state]}${day.amount ? ` — ${formatIQD(day.amount)}` : ''}`}>
-                      <div className="calendarDayTop"><strong>{day.day}</strong><span>{stateLabels[day.state]}</span></div>
-                      {day.amount > 0 && <small>{formatIQD(day.amount)}</small>}
-                    </div>
-                  ))}
+                  {branch.days.map((day) => {
+                    const key = `${branch.branch_id}-${day.date}`
+                    return (
+                      <button
+                        type="button"
+                        className={`calendarDay day-${day.state}${isAdmin ? ' calendarDayEditable' : ''}`}
+                        key={day.date}
+                        title={`${day.date} — ${stateLabels[day.state]}${day.amount ? ` — ${formatIQD(day.amount)}` : ''}${isAdmin ? ' — Click to change' : ''}`}
+                        onClick={() => editDay(branch, day)}
+                        disabled={!isAdmin || savingKey === key}
+                      >
+                        <div className="calendarDayTop"><strong>{day.day}</strong><span>{savingKey === key ? 'Saving…' : stateLabels[day.state]}</span></div>
+                        {day.amount > 0 && <small>{formatIQD(day.amount)}</small>}
+                      </button>
+                    )
+                  })}
                 </div>
               </article>
             ))}
