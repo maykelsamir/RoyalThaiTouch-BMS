@@ -104,8 +104,8 @@ def submit_entry(entry_id: int, current_user: User = Depends(get_current_user), 
         raise HTTPException(status_code=403, detail="Branch access denied")
     if item.status != "draft":
         raise HTTPException(status_code=409, detail="Entry has already been submitted")
-    if item.amount <= 0:
-        raise HTTPException(status_code=422, detail="Revenue amount must be greater than zero")
+    if item.amount < 0:
+        raise HTTPException(status_code=422, detail="Revenue amount cannot be negative")
     item.status = "submitted"
     db.commit()
     db.refresh(item)
