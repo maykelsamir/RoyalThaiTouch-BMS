@@ -1,8 +1,9 @@
 from calendar import monthrange
 from datetime import date
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,12 @@ class MonthStatusOverride(BaseModel):
     state: str
 
 
+class MonthAmountOverride(BaseModel):
+    branch_id: int
+    business_date: date
+    amount: Decimal = Field(ge=0)
+
+
 def _can_access_branch(user: User, branch_id: int) -> bool:
     return user.role.lower() == "admin" or not user.allowed_branch_ids or branch_id in user.allowed_branch_ids
 
@@ -37,6 +44,78 @@ def _entry_state(item: DailyRevenue | None, business_date: date, today: date) ->
     if item.status == "rejected":
         return "rejected"
     return "draft"
+
+
+@router.put("/amount")
+def override_month_amount(
+    body: MonthAmountOverride,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    if current_user.role.lower() != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can change daily revenue amounts")
+
+    branch = db.get(Branch, body.branch_id)
+    if not branch or not branch.active:
+        raise HTTPException(status_code=404, detail="Branch not found")
+
+    item = db.scalar(
+        select(DailyRevenue).where(
+            DailyRevenue.branch_id == body.branch_id,
+            DailyRevenue.business_date == body.business_date,
+        )
+    )
+    old_amount = Decimal(item.amount) if item else Decimal("0")
+    created = item is None
+
+    if item is None:
+        item = DailyRevenue(
+            branch_id=body.branch_id,
+            business_date=body.business_date,
+            amount=body.amount,
+            notes="Created by administrator from Month Entry Status",
+            report_image="",
+            status="draft",
+            created_by=current_user.id,
+            approved=False,
+        )
+        db.add(item)
+        db.flush()
+    else:
+        item.amount = body.amount
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        username=current_user.username,
+        role=current_user.role,
+        branch_id=body.branch_id,
+        action="month_status.amount_override",
+        module="month_status",
+        entity_type="daily_revenue",
+        entity_id=str(item.id),
+        result="success",
+        description=(
+            f"Changed {branch.name} daily revenue for {body.business_date.isoformat()} "
+            f"from {old_amount} to {body.amount}"
+        ),
+        before_data={"amount": float(old_amount), "entry_existed": not created},
+        after_data={"amount": float(body.amount), "entry_created": created},
+        request_method=request.method,
+        request_path=str(request.url.path),
+        ip_address=request.client.host if request.client else "",
+        user_agent=request.headers.get("user-agent", ""),
+    )
+    db.add(audit)
+    db.commit()
+
+    return {
+        "ok": True,
+        "entry_id": item.id,
+        "amount": float(item.amount),
+        "branch_id": body.branch_id,
+        "business_date": body.business_date.isoformat(),
+    }
 
 
 @router.put("/override")
@@ -181,7 +260,7 @@ def month_status(
                 "day": day_number,
                 "state": state,
                 "entry_id": item.id if item else None,
-                "amount": int(item.amount) if item else 0,
+                "amount": float(item.amount) if item else 0,
                 "status": item.status if item else None,
             })
 
