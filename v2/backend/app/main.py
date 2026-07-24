@@ -12,6 +12,7 @@ from app.api.routes.hr import router as hr_router
 from app.api.routes.month_status import router as month_status_router
 from app.api.routes.monthly_expenses import router as monthly_expenses_router
 from app.api.routes.reports import router as reports_router
+from app.api.routes.reports_pdf_styled import router as reports_pdf_styled_router
 from app.api.routes.user_admin import router as user_admin_router
 from app.core.config import get_settings
 from app.core.security import decode_token
@@ -99,6 +100,7 @@ app.include_router(daily_revenue_router, prefix="/api")
 app.include_router(month_status_router, prefix="/api")
 app.include_router(daily_approval_router, prefix="/api")
 app.include_router(monthly_expenses_router, prefix="/api")
+app.include_router(reports_pdf_styled_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
 app.include_router(user_admin_router, prefix="/api")
 app.include_router(audit_router, prefix="/api")
