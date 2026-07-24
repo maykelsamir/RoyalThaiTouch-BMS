@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from io import BytesIO
+import re
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -12,11 +13,23 @@ from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Space
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.api.routes.reports import _branch_ids, _money, _name, _qr_drawing, _report, _require, _validate_selection
+from app.api.routes.reports import _branch_ids, _money, _qr_drawing, _report, _require, _validate_selection
 from app.db.session import get_db
 from app.models.user import User
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+
+def _safe_filename_part(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", value.strip()).strip("_")
+    return cleaned or "UnknownCenter"
+
+
+def _pdf_filename(report) -> str:
+    center_name = report.branches[0].branch_name if len(report.branches) == 1 else "AllCenters"
+    center_part = _safe_filename_part(center_name)
+    month_year = report.date_from.strftime("%B_%Y")
+    return f"RoyalThaiTouch_{center_part}_FinancialReport_{month_year}.pdf"
 
 
 @router.get("/export/pdf")
@@ -288,8 +301,9 @@ def styled_pdf(
 
     document.build(story)
     output.seek(0)
+    filename = _pdf_filename(report)
     return StreamingResponse(
         output,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{_name(report, "pdf")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
