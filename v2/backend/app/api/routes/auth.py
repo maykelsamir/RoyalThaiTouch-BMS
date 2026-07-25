@@ -85,3 +85,7 @@ def logout(current_user: User = Depends(get_current_user), db: Session = Depends
     current_user.token_version += 1
     db.commit()
     return {"status": "logged_out"}
+
+
+from app.api.routes.backup import router as backup_router  # noqa: E402
+router.include_router(backup_router)
