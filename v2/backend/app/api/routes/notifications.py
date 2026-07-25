@@ -6,6 +6,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.notification import Notification
 from app.models.user import User
+from app.services.notifications import ensure_notifications_table
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -29,6 +30,7 @@ def list_notifications(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    ensure_notifications_table(db)
     items = list(db.scalars(
         select(Notification)
         .where(Notification.user_id == current_user.id)
@@ -42,25 +44,27 @@ def list_notifications(
     return {"items": [_serialize(item) for item in items], "unread": unread}
 
 
-@router.post("/{notification_id}/read")
-def mark_read(
-    notification_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    item = db.get(Notification, notification_id)
-    if not item or item.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Notification not found")
-    item.is_read = True
-    db.commit()
-    return {"status": "read"}
-
-
 @router.post("/read-all")
 def mark_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    ensure_notifications_table(db)
     db.execute(update(Notification).where(
         Notification.user_id == current_user.id,
         Notification.is_read.is_(False),
     ).values(is_read=True))
     db.commit()
     return {"status": "all_read"}
+
+
+@router.post("/{notification_id}/read")
+def mark_read(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ensure_notifications_table(db)
+    item = db.get(Notification, notification_id)
+    if not item or item.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    item.is_read = True
+    db.commit()
+    return {"status": "read"}
