@@ -88,4 +88,6 @@ def logout(current_user: User = Depends(get_current_user), db: Session = Depends
 
 
 from app.api.routes.backup import router as backup_router  # noqa: E402
+from app.api.routes.notifications import router as notifications_router  # noqa: E402
 router.include_router(backup_router)
+router.include_router(notifications_router)
