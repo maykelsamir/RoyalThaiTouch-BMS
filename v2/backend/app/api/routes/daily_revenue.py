@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -51,7 +51,12 @@ def list_entries(current_user: User = Depends(get_current_user), db: Session = D
 
 
 @router.post("", response_model=DailyRevenueView, status_code=status.HTTP_201_CREATED)
-def create_entry(body: DailyRevenueCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> DailyRevenueView:
+def create_entry(
+    body: DailyRevenueCreate,
+    submit: bool = Query(False),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DailyRevenueView:
     if not _can_create(current_user):
         raise HTTPException(status_code=403, detail="You do not have permission to create daily revenue")
     if not _can_access_branch(current_user, body.branch_id):
@@ -68,11 +73,22 @@ def create_entry(body: DailyRevenueCreate, current_user: User = Depends(get_curr
         amount=body.amount,
         notes=body.notes.strip(),
         report_image=body.report_image,
-        status="draft",
+        status="submitted" if submit else "draft",
         created_by=current_user.id,
         approved=False,
     )
     db.add(item)
+    db.flush()
+    if submit:
+        notify_admins(
+            db,
+            "Revenue awaiting approval",
+            f"{current_user.username} submitted revenue for {branch.name} on {item.business_date}.",
+            kind="warning",
+            module="daily-revenue",
+            entity_id=str(item.id),
+            exclude_user_id=current_user.id,
+        )
     db.commit()
     db.refresh(item)
     item.branch = branch
