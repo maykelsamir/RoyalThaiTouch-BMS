@@ -45,15 +45,20 @@ export default function DailyRevenuePage() {
 
   async function save(event) {
     event.preventDefault()
+    const confirmed = window.confirm(
+      'Submit Daily Revenue?\n\nAre you sure you want to submit this daily revenue?\n\nAfter submission, you will not be able to edit it unless it is rejected by an administrator.'
+    )
+    if (!confirmed) return
+
     setBusy(true)
     setMessage('')
     setError('')
     try {
-      await api('/daily-revenue', {
+      await api('/daily-revenue?submit=true', {
         method: 'POST',
         body: JSON.stringify({ ...form, branch_id: Number(form.branch_id), amount: Number(form.amount) }),
       })
-      setMessage(`Draft saved for ${selectedBranch?.name || 'branch'}.`)
+      setMessage(`Daily revenue submitted successfully for ${selectedBranch?.name || 'branch'}.`)
       setForm((current) => ({ ...emptyForm, branch_id: current.branch_id }))
       await load()
     } catch (requestError) {
@@ -64,6 +69,8 @@ export default function DailyRevenuePage() {
   }
 
   async function submit(entryId) {
+    const confirmed = window.confirm('Submit this saved draft for approval?')
+    if (!confirmed) return
     setBusy(true)
     setMessage('')
     setError('')
@@ -84,7 +91,7 @@ export default function DailyRevenuePage() {
         <div>
           <span className="eyebrow">Branch Operations</span>
           <h2>Daily Revenue</h2>
-          <p>Save the branch revenue as a draft, attach the paper report, then submit it for approval. Zero is accepted as a valid daily revenue.</p>
+          <p>Enter the branch revenue, attach the paper report, then submit it directly for approval. Zero is accepted as a valid daily revenue.</p>
         </div>
         <button className="secondaryButton" onClick={load} disabled={busy}>Refresh</button>
       </div>
@@ -105,7 +112,7 @@ export default function DailyRevenuePage() {
             }} /></label>
           </div>
           {form.report_image && <img className="reportPreview" src={form.report_image} alt="Paper report preview" />}
-          <button className="primaryButton" disabled={busy || !branches.length}>{busy ? 'Saving…' : 'Save Draft'}</button>
+          <button className="primaryButton" disabled={busy || !branches.length}>{busy ? 'Submitting…' : 'Submit'}</button>
         </form>
 
         <section className="revenueHistory">
