@@ -21,8 +21,11 @@ services:
       ENVIRONMENT: production
       DATABASE_URL: postgresql://rtt_v2:rtt_v2_dev_password@db:5432/royalthaitouch_v2
       JWT_SECRET: change-this-before-production-with-a-long-random-value
+      BACKUP_DIR: /app/backups
     ports:
       - "127.0.0.1:18000:8000"
+    volumes:
+      - rtt_v2_backups:/app/backups
     depends_on:
       db:
         condition: service_healthy
@@ -37,3 +40,4 @@ services:
 
 volumes:
   rtt_v2_postgres:
+  rtt_v2_backups:
