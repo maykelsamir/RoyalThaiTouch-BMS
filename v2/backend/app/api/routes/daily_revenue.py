@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.finance import Branch, DailyRevenue
 from app.models.user import User
 from app.schemas.daily_revenue import BranchOption, DailyRevenueCreate, DailyRevenueUpdate, DailyRevenueView
+from app.services.notifications import notify_admins
 
 router = APIRouter(prefix="/daily-revenue", tags=["daily-revenue"])
 
@@ -107,6 +108,15 @@ def submit_entry(entry_id: int, current_user: User = Depends(get_current_user), 
     if item.amount < 0:
         raise HTTPException(status_code=422, detail="Revenue amount cannot be negative")
     item.status = "submitted"
+    notify_admins(
+        db,
+        "Revenue awaiting approval",
+        f"{current_user.username} submitted revenue for {item.branch.name} on {item.business_date}.",
+        kind="warning",
+        module="daily-revenue",
+        entity_id=str(item.id),
+        exclude_user_id=current_user.id,
+    )
     db.commit()
     db.refresh(item)
     return _view(item)
