@@ -14,6 +14,8 @@ class ReportDailyRow(BaseModel):
     branch_id: int
     branch_name: str
     revenue: Decimal
+    customer_count: int
+    revenue_per_customer: Decimal
     allocated_expense: Decimal
     net_profit: Decimal
     entry_status: str
@@ -23,6 +25,8 @@ class ReportBranchSummary(BaseModel):
     branch_id: int
     branch_name: str
     revenue: Decimal
+    customer_count: int
+    revenue_per_customer: Decimal
     expenses: Decimal
     net_profit: Decimal
     approved_entries: int
@@ -34,6 +38,8 @@ class FinancialReportView(BaseModel):
     date_to: date
     generated_at: str
     company_revenue: Decimal
+    company_customer_count: int
+    company_revenue_per_customer: Decimal
     company_expenses: Decimal
     company_net_profit: Decimal
     branches: list[ReportBranchSummary]
