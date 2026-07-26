@@ -165,6 +165,7 @@ def startup() -> None:
         Base.metadata.create_all(bind=engine)
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS report_image TEXT NOT NULL DEFAULT ''"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS customer_count INTEGER NOT NULL DEFAULT 0"))
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'draft'"))
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS created_by INTEGER NULL REFERENCES users_v2(id) ON DELETE SET NULL"))
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD COLUMN IF NOT EXISTS approved_by INTEGER NULL REFERENCES users_v2(id) ON DELETE SET NULL"))
@@ -190,6 +191,9 @@ def startup() -> None:
             """))
             connection.execute(text("ALTER TABLE daily_revenues_v2 ADD CONSTRAINT ck_daily_revenues_v2_amount_nonnegative CHECK (amount >= 0) NOT VALID"))
             connection.execute(text("ALTER TABLE daily_revenues_v2 VALIDATE CONSTRAINT ck_daily_revenues_v2_amount_nonnegative"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 DROP CONSTRAINT IF EXISTS ck_daily_revenues_v2_customer_count_nonnegative"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 ADD CONSTRAINT ck_daily_revenues_v2_customer_count_nonnegative CHECK (customer_count >= 0) NOT VALID"))
+            connection.execute(text("ALTER TABLE daily_revenues_v2 VALIDATE CONSTRAINT ck_daily_revenues_v2_customer_count_nonnegative"))
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS full_name VARCHAR(160) NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS email VARCHAR(180) NOT NULL DEFAULT ''"))
             connection.execute(text("ALTER TABLE users_v2 ADD COLUMN IF NOT EXISTS phone VARCHAR(60) NOT NULL DEFAULT ''"))
