@@ -3,18 +3,7 @@ from pathlib import Path
 path = Path('/app/app/main.py')
 s = path.read_text(encoding='utf-8')
 
-schema_anchor = '''class PendingEntryInput(BaseModel):
-    branch_id: int
-    business_date: date
-    revenue: float = 0
-    notes: Optional[str] = None
-    expenses: List[DailyEntryExpense] = []
-    submitted_by: Optional[str] = None
-'''
-
-schema = schema_anchor + '''
-
-class AdminMonthEntryUpdate(BaseModel):
+schema = '''class AdminMonthEntryUpdate(BaseModel):
     branch_id: int
     business_date: date
     revenue: float = 0
@@ -23,12 +12,15 @@ class AdminMonthEntryUpdate(BaseModel):
     reason: str
     username: str
     secret: str
+
+
 '''
 
 if 'class AdminMonthEntryUpdate(BaseModel):' not in s:
+    schema_anchor = '\n\ndef wait_for_database() -> None:'
     if schema_anchor not in s:
-        raise SystemExit('PendingEntryInput schema anchor not found')
-    s = s.replace(schema_anchor, schema)
+        raise SystemExit('wait_for_database schema insertion point not found')
+    s = s.replace(schema_anchor, '\n\n' + schema + 'def wait_for_database() -> None:', 1)
 
 route_anchor = '''@app.post("/daily-entry/close")
 def close_day(branch_id: int, business_date: date, db: Session = Depends(get_db)):
@@ -60,7 +52,7 @@ def admin_update_daily_entry(body: AdminMonthEntryUpdate, db: Session = Depends(
 
     old_amount = float(revenue.amount or 0) if revenue else 0
     old_closed = bool(revenue.closed) if revenue else False
-    old_notes = revenue.notes or "" if revenue else ""
+    old_notes = (revenue.notes or "") if revenue else ""
 
     if not revenue:
         revenue = DailyRevenue(
@@ -102,6 +94,6 @@ def admin_update_daily_entry(body: AdminMonthEntryUpdate, db: Session = Depends(
 if '@app.patch("/daily-entry/admin-update")' not in s:
     if route_anchor not in s:
         raise SystemExit('close day route anchor not found')
-    s = s.replace(route_anchor, route + route_anchor)
+    s = s.replace(route_anchor, route + route_anchor, 1)
 
 path.write_text(s, encoding='utf-8')
