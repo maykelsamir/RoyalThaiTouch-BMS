@@ -11,7 +11,15 @@ class BranchWrite(BaseModel):
     address: str = Field(default="", max_length=500)
     phone: str = Field(default="", max_length=60)
     email: str = Field(default="", max_length=180)
-    whatsapp: str = Field(default="", max_length=60)
+    whatsapp: str = Field(default="", max_length=300)
+    website: str = Field(default="", max_length=500)
+    facebook: str = Field(default="", max_length=500)
+    instagram: str = Field(default="", max_length=500)
+    tiktok: str = Field(default="", max_length=500)
+    youtube: str = Field(default="", max_length=500)
+    telegram: str = Field(default="", max_length=500)
+    snapchat: str = Field(default="", max_length=500)
+    google_maps: str = Field(default="", max_length=1000)
     manager_name: str = Field(default="", max_length=160)
     opening_date: date | None = None
     logo: str = ""
