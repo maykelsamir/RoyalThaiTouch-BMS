@@ -28,6 +28,16 @@ class MonthAmountOverride(BaseModel):
     amount: Decimal = Field(ge=0)
 
 
+class MonthEntryEdit(BaseModel):
+    branch_id: int
+    business_date: date
+    amount: Decimal = Field(ge=0)
+    customer_count: int = Field(default=0, ge=0)
+    state: str
+    notes: str = ""
+    reason: str = Field(min_length=3, max_length=1000)
+
+
 def _can_access_branch(user: User, branch_id: int) -> bool:
     return user.role.lower() == "admin" or not user.allowed_branch_ids or branch_id in user.allowed_branch_ids
 
@@ -44,6 +54,113 @@ def _entry_state(item: DailyRevenue | None, business_date: date, today: date) ->
     if item.status == "rejected":
         return "rejected"
     return "draft"
+
+
+def _apply_state(item: DailyRevenue, state: str) -> None:
+    if state == "complete":
+        item.status = "approved"
+        item.approved = True
+    elif state == "pending":
+        item.status = "submitted"
+        item.approved = False
+    elif state == "rejected":
+        item.status = "rejected"
+        item.approved = False
+    else:
+        item.status = "draft"
+        item.approved = False
+
+
+@router.put("/edit")
+def edit_month_entry(body: MonthEntryEdit, request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    if current_user.role.lower() != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can edit month entries")
+    allowed_states = {"missing", "draft", "pending", "complete", "rejected"}
+    if body.state not in allowed_states:
+        raise HTTPException(status_code=422, detail="Invalid status")
+    reason = body.reason.strip()
+    if len(reason) < 3:
+        raise HTTPException(status_code=422, detail="Reason for change is required")
+    branch = db.get(Branch, body.branch_id)
+    if not branch or not branch.active:
+        raise HTTPException(status_code=404, detail="Branch not found")
+
+    item = db.scalar(select(DailyRevenue).where(DailyRevenue.branch_id == body.branch_id, DailyRevenue.business_date == body.business_date))
+    old_state = _entry_state(item, body.business_date, date.today())
+    old_data = {
+        "state": old_state,
+        "status": item.status if item else None,
+        "approved": bool(item.approved) if item else False,
+        "amount": float(item.amount) if item else 0,
+        "customer_count": int(item.customer_count) if item else 0,
+        "notes": item.notes if item else "",
+    }
+
+    if body.state == "missing":
+        entity_id = str(item.id) if item else ""
+        if item:
+            db.delete(item)
+        result = {
+            "entry_id": None,
+            "state": "missing",
+            "status": None,
+            "approved": False,
+            "amount": 0,
+            "customer_count": 0,
+            "notes": "",
+        }
+    else:
+        if item is None:
+            item = DailyRevenue(
+                branch_id=body.branch_id,
+                business_date=body.business_date,
+                amount=body.amount,
+                customer_count=body.customer_count,
+                notes=body.notes.strip(),
+                report_image="",
+                status="draft",
+                created_by=current_user.id,
+                approved=False,
+            )
+            db.add(item)
+            db.flush()
+        else:
+            item.amount = body.amount
+            item.customer_count = body.customer_count
+            item.notes = body.notes.strip()
+        _apply_state(item, body.state)
+        entity_id = str(item.id)
+        result = {
+            "entry_id": item.id,
+            "state": body.state,
+            "status": item.status,
+            "approved": bool(item.approved),
+            "amount": float(item.amount),
+            "customer_count": int(item.customer_count),
+            "notes": item.notes or "",
+        }
+
+    after_data = {**result, "reason": reason}
+    db.add(AuditLog(
+        user_id=current_user.id,
+        username=current_user.username,
+        role=current_user.role,
+        branch_id=body.branch_id,
+        action="month_status.admin_edit",
+        module="month_status",
+        entity_type="daily_revenue",
+        entity_id=entity_id,
+        result="success",
+        description=f"Admin changed {branch.name} entry for {body.business_date.isoformat()} from {old_state} to {body.state}. Reason: {reason}",
+        before_data=old_data,
+        after_data=after_data,
+        request_method=request.method,
+        request_path=str(request.url.path),
+        ip_address=request.client.host if request.client else "",
+        user_agent=request.headers.get("user-agent", ""),
+    ))
+    db.commit()
+    return {"ok": True, "branch_id": body.branch_id, "business_date": body.business_date.isoformat(), **result}
 
 
 @router.put("/amount")
@@ -87,14 +204,7 @@ def override_month_status(body: MonthStatusOverride, request: Request, current_u
         if item is None:
             item = DailyRevenue(branch_id=body.branch_id, business_date=body.business_date, amount=0, customer_count=0, notes="Created by administrator from Month Entry Status", report_image="", status="draft", created_by=current_user.id, approved=False)
             db.add(item); db.flush()
-        if body.state == "complete":
-            item.status = "approved"; item.approved = True
-        elif body.state == "pending":
-            item.status = "submitted"; item.approved = False
-        elif body.state == "rejected":
-            item.status = "rejected"; item.approved = False
-        else:
-            item.status = "draft"; item.approved = False
+        _apply_state(item, body.state)
         entity_id = str(item.id)
     db.add(AuditLog(user_id=current_user.id, username=current_user.username, role=current_user.role, branch_id=body.branch_id, action="month_status.override", module="month_status", entity_type="daily_revenue", entity_id=entity_id, result="success", description=f"Changed {branch.name} entry for {body.business_date.isoformat()} from {old_state} to {body.state}", before_data=old_data, after_data={"state": body.state}, request_method=request.method, request_path=str(request.url.path), ip_address=request.client.host if request.client else "", user_agent=request.headers.get("user-agent", "")))
     db.commit()
@@ -133,7 +243,7 @@ def month_status(year: int = Query(..., ge=2020, le=2100), month: int = Query(..
             total_customers += customers
             company_customers += customers
             summary[state] += 1; company_summary[state] += 1
-            days.append({"date": business_date.isoformat(), "day": day_number, "state": state, "entry_id": item.id if item else None, "amount": float(item.amount) if item else 0, "customer_count": customers, "status": item.status if item else None})
+            days.append({"date": business_date.isoformat(), "day": day_number, "state": state, "entry_id": item.id if item else None, "amount": float(item.amount) if item else 0, "customer_count": customers, "status": item.status if item else None, "notes": item.notes if item else ""})
         elapsed_days = sum(summary[key] for key in ("complete", "pending", "draft", "rejected", "missing"))
         branch_results.append({"branch_id": branch.id, "branch_name": branch.name, "summary": summary, "completion_rate": round((summary["complete"] / elapsed_days) * 100, 1) if elapsed_days else 0, "total_customers": total_customers, "days": days})
     elapsed_company_days = sum(company_summary[key] for key in ("complete", "pending", "draft", "rejected", "missing"))
