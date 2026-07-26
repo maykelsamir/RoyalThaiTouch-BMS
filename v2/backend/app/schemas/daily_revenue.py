@@ -8,12 +8,14 @@ class DailyRevenueCreate(BaseModel):
     branch_id: int
     business_date: date
     amount: Decimal = Field(ge=0)
+    customer_count: int = Field(ge=0)
     notes: str = Field(default="", max_length=1000)
     report_image: str = Field(default="", max_length=5000000)
 
 
 class DailyRevenueUpdate(BaseModel):
     amount: Decimal = Field(ge=0)
+    customer_count: int = Field(ge=0)
     notes: str = Field(default="", max_length=1000)
     report_image: str = Field(default="", max_length=5000000)
 
@@ -24,6 +26,7 @@ class DailyRevenueView(BaseModel):
     branch_name: str
     business_date: date
     amount: Decimal
+    customer_count: int
     notes: str
     report_image: str
     status: str
