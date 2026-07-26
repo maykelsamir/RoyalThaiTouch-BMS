@@ -27,6 +27,7 @@ def _view(item: DailyRevenue) -> DailyRevenueView:
         branch_name=item.branch.name,
         business_date=item.business_date,
         amount=item.amount,
+        customer_count=item.customer_count,
         notes=item.notes,
         report_image=item.report_image or "",
         status=item.status,
@@ -71,6 +72,7 @@ def create_entry(
         branch_id=body.branch_id,
         business_date=body.business_date,
         amount=body.amount,
+        customer_count=body.customer_count,
         notes=body.notes.strip(),
         report_image=body.report_image,
         status="submitted" if submit else "draft",
@@ -83,7 +85,7 @@ def create_entry(
         notify_admins(
             db,
             "Revenue awaiting approval",
-            f"{current_user.username} submitted revenue for {branch.name} on {item.business_date}.",
+            f"{current_user.username} submitted revenue for {branch.name} on {item.business_date} with {item.customer_count} customers.",
             kind="warning",
             module="daily-revenue",
             entity_id=str(item.id),
@@ -105,6 +107,7 @@ def update_entry(entry_id: int, body: DailyRevenueUpdate, current_user: User = D
     if item.status != "draft" and current_user.role.lower() != "admin":
         raise HTTPException(status_code=409, detail="Only draft entries can be edited")
     item.amount = body.amount
+    item.customer_count = body.customer_count
     item.notes = body.notes.strip()
     item.report_image = body.report_image
     db.commit()
@@ -121,13 +124,13 @@ def submit_entry(entry_id: int, current_user: User = Depends(get_current_user), 
         raise HTTPException(status_code=403, detail="Branch access denied")
     if item.status != "draft":
         raise HTTPException(status_code=409, detail="Entry has already been submitted")
-    if item.amount < 0:
-        raise HTTPException(status_code=422, detail="Revenue amount cannot be negative")
+    if item.amount < 0 or item.customer_count < 0:
+        raise HTTPException(status_code=422, detail="Revenue amount and customer count cannot be negative")
     item.status = "submitted"
     notify_admins(
         db,
         "Revenue awaiting approval",
-        f"{current_user.username} submitted revenue for {item.branch.name} on {item.business_date}.",
+        f"{current_user.username} submitted revenue for {item.branch.name} on {item.business_date} with {item.customer_count} customers.",
         kind="warning",
         module="daily-revenue",
         entity_id=str(item.id),
