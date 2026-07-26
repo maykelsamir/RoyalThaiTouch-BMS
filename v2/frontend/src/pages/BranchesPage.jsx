@@ -24,10 +24,37 @@ export default function BranchesPage({ user, onOpenProfile }) {
   useEffect(()=>{load()},[])
 
   const filtered=useMemo(()=>branches.filter(b=>`${b.name} ${b.code} ${b.city} ${b.manager_name}`.toLowerCase().includes(search.toLowerCase())),[branches,search])
-  function startCreate(){setEditing(null);setForm(emptyForm);setShowForm(true);setMessage('')}
-  function startEdit(item){setEditing(item);setForm({...emptyForm,...item,opening_date:item.opening_date||''});setShowForm(true);setMessage('')}
+  function startCreate(){setEditing(null);setForm(emptyForm);setShowForm(true);setMessage('');setError('')}
+  function startEdit(item){setEditing(item);setForm({...emptyForm,...item,opening_date:item.opening_date||''});setShowForm(true);setMessage('');setError('')}
   function closeForm(){setShowForm(false);setEditing(null);setForm(emptyForm)}
-  async function save(e){e.preventDefault();setBusy(true);setError('');setMessage('');try{const path=editing?`/branches/${editing.id}`:'/branches';await api(path,{method:editing?'PUT':'POST',body:JSON.stringify(form)});setMessage(editing?'Branch updated successfully.':'Branch created successfully.');closeForm();await load()}catch(err){setError(err.message)}finally{setBusy(false)}}
+  async function save(e){
+    e.preventDefault()
+    if(busy)return
+    setBusy(true);setError('');setMessage('')
+    try{
+      const path=editing?`/branches/${editing.id}`:'/branches'
+      const payload={
+        name:String(form.name||'').trim(),
+        code:String(form.code||'').trim(),
+        country:String(form.country||'').trim(),
+        city:String(form.city||'').trim(),
+        address:String(form.address||'').trim(),
+        phone:String(form.phone||'').trim(),
+        email:String(form.email||'').trim(),
+        whatsapp:String(form.whatsapp||'').trim(),
+        manager_name:String(form.manager_name||'').trim(),
+        opening_date:form.opening_date||null,
+        logo:String(form.logo||'').trim(),
+        cover_image:String(form.cover_image||'').trim(),
+        notes:String(form.notes||'').trim(),
+        active:Boolean(form.active),
+      }
+      await api(path,{method:editing?'PUT':'POST',body:JSON.stringify(payload)})
+      closeForm()
+      await load()
+      setMessage(editing?'Branch updated successfully.':'Branch created successfully.')
+    }catch(err){setError(err.message||'Unable to save branch information.')}finally{setBusy(false)}
+  }
   async function toggle(item){try{await api(`/branches/${item.id}/status`,{method:'PATCH'});await load()}catch(e){setError(e.message)}}
   async function remove(item){if(!window.confirm(`Delete ${item.name}?`))return;try{await api(`/branches/${item.id}`,{method:'DELETE'});setMessage('Branch deleted.');await load()}catch(e){setError(e.message)}}
 
@@ -49,7 +76,7 @@ export default function BranchesPage({ user, onOpenProfile }) {
         <label>Branch name<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Branch code<input value={form.code} placeholder="Auto generated" onChange={e=>setForm({...form,code:e.target.value})}/></label>
         <label>Country<input value={form.country} onChange={e=>setForm({...form,country:e.target.value})}/></label><label>City<input value={form.city} onChange={e=>setForm({...form,city:e.target.value})}/></label>
         <label className="wide">Address<input value={form.address} onChange={e=>setForm({...form,address:e.target.value})}/></label><label>Phone<input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label><label>WhatsApp<input value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})}/></label>
-        <label>Email<input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label><label>Manager name<input value={form.manager_name} onChange={e=>setForm({...form,manager_name:e.target.value})}/></label><label>Opening date<input type="date" value={form.opening_date} onChange={e=>setForm({...form,opening_date:e.target.value||null})}/></label>
+        <label>Email<input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label><label>Manager name<input value={form.manager_name} onChange={e=>setForm({...form,manager_name:e.target.value})}/></label><label>Opening date<input type="date" value={form.opening_date||''} onChange={e=>setForm({...form,opening_date:e.target.value})}/></label>
         <label className="wide">Logo URL / data image<input value={form.logo} onChange={e=>setForm({...form,logo:e.target.value})}/></label><label className="wide">Cover image URL / data image<input value={form.cover_image} onChange={e=>setForm({...form,cover_image:e.target.value})}/></label><label className="wide">Notes<textarea rows="4" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label><label className="switchRow wide"><input type="checkbox" checked={form.active} onChange={e=>setForm({...form,active:e.target.checked})}/> Active branch</label>
       </div><div className="modalActions"><button type="button" className="secondaryButton" onClick={closeForm}>Cancel</button><button className="primaryButton" disabled={busy}>{busy?'Saving…':'Save Branch'}</button></div></form></div>}
   </>
