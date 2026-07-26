@@ -3,6 +3,37 @@ import { api } from '../api/client'
 import './BranchesPage.css'
 
 const emptyForm = { name:'', code:'', country:'Iraq', city:'', address:'', phone:'', email:'', whatsapp:'', manager_name:'', opening_date:'', logo:'', cover_image:'', notes:'', active:true }
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_SOURCE_SIZE = 8 * 1024 * 1024
+
+function imageToDataUrl(file, kind) {
+  return new Promise((resolve, reject) => {
+    if (!IMAGE_TYPES.includes(file.type)) return reject(new Error('Please choose a JPG, PNG, or WebP image.'))
+    if (file.size > MAX_SOURCE_SIZE) return reject(new Error('The selected image is too large. Maximum source size is 8 MB.'))
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Unable to read the selected image.'))
+    reader.onload = () => {
+      const image = new Image()
+      image.onerror = () => reject(new Error('The selected file is not a valid image.'))
+      image.onload = () => {
+        const maxWidth = kind === 'logo' ? 600 : 1600
+        const maxHeight = kind === 'logo' ? 600 : 900
+        const scale = Math.min(1, maxWidth / image.width, maxHeight / image.height)
+        const width = Math.max(1, Math.round(image.width * scale))
+        const height = Math.max(1, Math.round(image.height * scale))
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const context = canvas.getContext('2d')
+        context.drawImage(image, 0, 0, width, height)
+        const outputType = file.type === 'image/png' && kind === 'logo' ? 'image/png' : 'image/jpeg'
+        resolve(canvas.toDataURL(outputType, 0.86))
+      }
+      image.src = String(reader.result)
+    }
+    reader.readAsDataURL(file)
+  })
+}
 
 export default function BranchesPage({ user, onOpenProfile }) {
   const [branches,setBranches]=useState([])
@@ -14,6 +45,7 @@ export default function BranchesPage({ user, onOpenProfile }) {
   const [error,setError]=useState('')
   const [message,setMessage]=useState('')
   const [busy,setBusy]=useState(false)
+  const [imageBusy,setImageBusy]=useState('')
   const isAdmin=user.role.toLowerCase()==='admin'
 
   async function load(){
@@ -26,33 +58,25 @@ export default function BranchesPage({ user, onOpenProfile }) {
   const filtered=useMemo(()=>branches.filter(b=>`${b.name} ${b.code} ${b.city} ${b.manager_name}`.toLowerCase().includes(search.toLowerCase())),[branches,search])
   function startCreate(){setEditing(null);setForm(emptyForm);setShowForm(true);setMessage('');setError('')}
   function startEdit(item){setEditing(item);setForm({...emptyForm,...item,opening_date:item.opening_date||''});setShowForm(true);setMessage('');setError('')}
-  function closeForm(){setShowForm(false);setEditing(null);setForm(emptyForm)}
+  function closeForm(){if(busy||imageBusy)return;setShowForm(false);setEditing(null);setForm(emptyForm)}
+  async function chooseImage(event, field){
+    const file=event.target.files?.[0]
+    event.target.value=''
+    if(!file)return
+    setImageBusy(field);setError('')
+    try{const value=await imageToDataUrl(file,field==='logo'?'logo':'cover');setForm(current=>({...current,[field]:value}))}
+    catch(err){setError(err.message)}finally{setImageBusy('')}
+  }
   async function save(e){
-    e.preventDefault()
-    if(busy)return
+    e.preventDefault();if(busy||imageBusy)return
     setBusy(true);setError('');setMessage('')
     try{
       const path=editing?`/branches/${editing.id}`:'/branches'
       const payload={
-        name:String(form.name||'').trim(),
-        code:String(form.code||'').trim(),
-        country:String(form.country||'').trim(),
-        city:String(form.city||'').trim(),
-        address:String(form.address||'').trim(),
-        phone:String(form.phone||'').trim(),
-        email:String(form.email||'').trim(),
-        whatsapp:String(form.whatsapp||'').trim(),
-        manager_name:String(form.manager_name||'').trim(),
-        opening_date:form.opening_date||null,
-        logo:String(form.logo||'').trim(),
-        cover_image:String(form.cover_image||'').trim(),
-        notes:String(form.notes||'').trim(),
-        active:Boolean(form.active),
+        name:String(form.name||'').trim(),code:String(form.code||'').trim(),country:String(form.country||'').trim(),city:String(form.city||'').trim(),address:String(form.address||'').trim(),phone:String(form.phone||'').trim(),email:String(form.email||'').trim(),whatsapp:String(form.whatsapp||'').trim(),manager_name:String(form.manager_name||'').trim(),opening_date:form.opening_date||null,logo:form.logo||'',cover_image:form.cover_image||'',notes:String(form.notes||'').trim(),active:Boolean(form.active),
       }
       await api(path,{method:editing?'PUT':'POST',body:JSON.stringify(payload)})
-      closeForm()
-      await load()
-      setMessage(editing?'Branch updated successfully.':'Branch created successfully.')
+      setShowForm(false);setEditing(null);setForm(emptyForm);await load();setMessage(editing?'Branch updated successfully.':'Branch created successfully.')
     }catch(err){setError(err.message||'Unable to save branch information.')}finally{setBusy(false)}
   }
   async function toggle(item){try{await api(`/branches/${item.id}/status`,{method:'PATCH'});await load()}catch(e){setError(e.message)}}
@@ -71,13 +95,15 @@ export default function BranchesPage({ user, onOpenProfile }) {
         <div className="branchActions"><button onClick={()=>onOpenProfile(item.id)}>View Profile</button>{isAdmin&&<><button onClick={()=>startEdit(item)}>Edit</button><button onClick={()=>toggle(item)}>{item.active?'Disable':'Enable'}</button><button className="dangerText" onClick={()=>remove(item)}>Delete</button></>}</div>
       </article>)}</div>
     </section>
-    {showForm&&<div className="modalBackdrop"><form className="branchModal" onSubmit={save}><div className="modalHeader"><div><span className="eyebrow">{editing?'Update Center':'New Center'}</span><h3>{editing?editing.name:'Create Branch'}</h3></div><button type="button" onClick={closeForm}>×</button></div>
+    {showForm&&<div className="modalBackdrop"><form className="branchModal" onSubmit={save}><div className="modalHeader"><div><span className="eyebrow">{editing?'Update Center':'New Center'}</span><h3>{editing?editing.name:'Create Branch'}</h3></div><button type="button" disabled={busy||!!imageBusy} onClick={closeForm}>×</button></div>
       <div className="branchFormGrid">
         <label>Branch name<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Branch code<input value={form.code} placeholder="Auto generated" onChange={e=>setForm({...form,code:e.target.value})}/></label>
         <label>Country<input value={form.country} onChange={e=>setForm({...form,country:e.target.value})}/></label><label>City<input value={form.city} onChange={e=>setForm({...form,city:e.target.value})}/></label>
         <label className="wide">Address<input value={form.address} onChange={e=>setForm({...form,address:e.target.value})}/></label><label>Phone<input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label><label>WhatsApp<input value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})}/></label>
         <label>Email<input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label><label>Manager name<input value={form.manager_name} onChange={e=>setForm({...form,manager_name:e.target.value})}/></label><label>Opening date<input type="date" value={form.opening_date||''} onChange={e=>setForm({...form,opening_date:e.target.value})}/></label>
-        <label className="wide">Logo URL / data image<input value={form.logo} onChange={e=>setForm({...form,logo:e.target.value})}/></label><label className="wide">Cover image URL / data image<input value={form.cover_image} onChange={e=>setForm({...form,cover_image:e.target.value})}/></label><label className="wide">Notes<textarea rows="4" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label><label className="switchRow wide"><input type="checkbox" checked={form.active} onChange={e=>setForm({...form,active:e.target.checked})}/> Active branch</label>
-      </div><div className="modalActions"><button type="button" className="secondaryButton" onClick={closeForm}>Cancel</button><button className="primaryButton" disabled={busy}>{busy?'Saving…':'Save Branch'}</button></div></form></div>}
+        <div className="branchImageField"><span>Branch logo</span><div className="branchImageUpload">{form.logo?<img className="branchLogoPreview" src={form.logo} alt="Branch logo preview"/>:<div className="branchImagePlaceholder">RT</div>}<div><label className="imageChooseButton">{imageBusy==='logo'?'Processing…':'Upload logo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={!!imageBusy||busy} onChange={e=>chooseImage(e,'logo')}/></label>{form.logo&&<button type="button" className="imageRemoveButton" disabled={!!imageBusy||busy} onClick={()=>setForm({...form,logo:''})}>Remove</button>}<small>JPG, PNG, or WebP. Resized automatically.</small></div></div></div>
+        <div className="branchImageField"><span>Cover photo</span><div className="branchCoverUpload">{form.cover_image?<img className="branchCoverPreview" src={form.cover_image} alt="Branch cover preview"/>:<div className="branchCoverPlaceholder">Cover preview</div>}<div className="branchImageControls"><label className="imageChooseButton">{imageBusy==='cover_image'?'Processing…':'Upload cover photo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={!!imageBusy||busy} onChange={e=>chooseImage(e,'cover_image')}/></label>{form.cover_image&&<button type="button" className="imageRemoveButton" disabled={!!imageBusy||busy} onClick={()=>setForm({...form,cover_image:''})}>Remove</button>}<small>Recommended landscape image. Maximum output 1600 × 900.</small></div></div></div>
+        <label className="wide">Notes<textarea rows="4" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label><label className="switchRow wide"><input type="checkbox" checked={form.active} onChange={e=>setForm({...form,active:e.target.checked})}/> Active branch</label>
+      </div><div className="modalActions"><button type="button" className="secondaryButton" disabled={busy||!!imageBusy} onClick={closeForm}>Cancel</button><button className="primaryButton" disabled={busy||!!imageBusy}>{imageBusy?'Processing image…':busy?'Saving…':'Save Branch'}</button></div></form></div>}
   </>
 }
