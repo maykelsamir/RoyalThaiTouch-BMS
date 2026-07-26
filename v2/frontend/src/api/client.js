@@ -21,13 +21,30 @@ export function clearTokens() {
   localStorage.removeItem(REFRESH_KEY)
 }
 
+function errorMessage(payload, status) {
+  if (typeof payload === 'string') return payload || `Request failed (${status})`
+  const detail = payload?.detail ?? payload?.message ?? payload
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => {
+      if (typeof item === 'string') return item
+      const field = Array.isArray(item?.loc) ? item.loc.filter((part) => part !== 'body').join(' → ') : ''
+      const message = item?.msg || item?.message || 'Invalid value'
+      return field ? `${field}: ${message}` : message
+    }).filter(Boolean)
+    if (messages.length) return messages.join(' · ')
+  }
+  try {
+    const text = JSON.stringify(detail)
+    if (text && text !== '{}') return text
+  } catch {}
+  return `Request failed (${status})`
+}
+
 async function parseResponse(response) {
   const type = response.headers.get('content-type') || ''
   const payload = type.includes('application/json') ? await response.json() : await response.text()
-  if (!response.ok) {
-    const message = typeof payload === 'object' ? payload.detail : payload
-    throw new Error(message || `Request failed (${response.status})`)
-  }
+  if (!response.ok) throw new Error(errorMessage(payload, response.status))
   return payload
 }
 
@@ -74,7 +91,7 @@ export async function apiDownload(path, fallbackName, retry = true) {
   if (!response.ok) {
     const type = response.headers.get('content-type') || ''
     const payload = type.includes('application/json') ? await response.json() : await response.text()
-    throw new Error(typeof payload === 'object' ? payload.detail : payload)
+    throw new Error(errorMessage(payload, response.status))
   }
   const blob = await response.blob()
   const disposition = response.headers.get('content-disposition') || ''
