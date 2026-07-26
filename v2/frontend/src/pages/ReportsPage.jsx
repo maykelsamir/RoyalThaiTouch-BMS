@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, apiDownload } from '../api/client'
 import './ReportsPage.css'
 
-function isoDate(date) { return date.toISOString().slice(0, 10) }
+function isoDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 function initialDates() { const now = new Date(); return { dateFrom: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)), dateTo: isoDate(now) } }
 function formatIQD(value) { return `${Number(value || 0).toLocaleString('en-US')} IQD` }
 function formatCount(value) { return Number(value || 0).toLocaleString('en-US') }
