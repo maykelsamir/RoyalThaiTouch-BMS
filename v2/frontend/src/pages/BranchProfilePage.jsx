@@ -4,6 +4,16 @@ import './BranchProfilePage.css'
 
 function money(value){return `${Number(value||0).toLocaleString('en-US')} IQD`}
 function dateTime(value){return value?new Date(value).toLocaleString():'—'}
+function whatsappUrl(value){
+  const raw=String(value||'').trim()
+  if(!raw)return ''
+  if(/^https?:\/\//i.test(raw))return raw
+  let digits=raw.replace(/\D/g,'')
+  if(digits.startsWith('00'))digits=digits.slice(2)
+  if(digits.startsWith('0'))digits=`964${digits.slice(1)}`
+  else if(!digits.startsWith('964'))digits=`964${digits}`
+  return digits?`https://wa.me/${digits}`:''
+}
 
 export default function BranchProfilePage({ branchId, onBack, onEdit }){
   const [data,setData]=useState(null)
@@ -24,6 +34,7 @@ export default function BranchProfilePage({ branchId, onBack, onEdit }){
   if(error)return <><button className="profileBack" onClick={onBack}>← Back to Branches</button><div className="alert">{error}</div></>
   if(!data)return null
   const {branch,summary,users,performance,audit_history}=data
+  const branchWhatsappUrl=whatsappUrl(branch.whatsapp)
 
   return <section className="branchProfilePage">
     <div className="profileBreadcrumb"><button onClick={onBack}>Branches</button><span>›</span><strong>{branch.name}</strong></div>
@@ -45,7 +56,7 @@ export default function BranchProfilePage({ branchId, onBack, onEdit }){
     </nav>
 
     {tab==='overview'&&<div className="profileTwoColumn">
-      <article className="profilePanel"><h3>Branch Information</h3><dl className="profileDetails"><div><dt>Manager</dt><dd>{branch.manager_name||'Not assigned'}</dd></div><div><dt>Opening Date</dt><dd>{branch.opening_date||'—'}</dd></div><div><dt>Phone</dt><dd>{branch.phone||'—'}</dd></div><div><dt>WhatsApp</dt><dd>{branch.whatsapp||'—'}</dd></div><div><dt>Email</dt><dd>{branch.email||'—'}</dd></div><div><dt>Address</dt><dd>{branch.address||'—'}</dd></div><div><dt>Created</dt><dd>{dateTime(branch.created_at)}</dd></div><div><dt>Last Updated</dt><dd>{dateTime(branch.updated_at)}</dd></div></dl></article>
+      <article className="profilePanel"><h3>Branch Information</h3><dl className="profileDetails"><div><dt>Manager</dt><dd>{branch.manager_name||'Not assigned'}</dd></div><div><dt>Opening Date</dt><dd>{branch.opening_date||'—'}</dd></div><div><dt>Phone</dt><dd>{branch.phone||'—'}</dd></div><div><dt>WhatsApp</dt><dd>{branchWhatsappUrl?<a href={branchWhatsappUrl} target="_blank" rel="noopener noreferrer" title="Open WhatsApp in a new tab" onDoubleClick={(event)=>{event.preventDefault();window.open(branchWhatsappUrl,'_blank','noopener,noreferrer')}}>{branchWhatsappUrl}</a>:'—'}</dd></div><div><dt>Email</dt><dd>{branch.email||'—'}</dd></div><div><dt>Address</dt><dd>{branch.address||'—'}</dd></div><div><dt>Created</dt><dd>{dateTime(branch.created_at)}</dd></div><div><dt>Last Updated</dt><dd>{dateTime(branch.updated_at)}</dd></div></dl></article>
       <article className="profilePanel"><h3>Administrative Notes</h3><p className="profileNotes">{branch.notes||'No administrative notes have been added for this branch.'}</p><div className="overviewMiniStats"><div><span>Revenue Records</span><strong>{branch.revenue_count}</strong></div><div><span>Expense Records</span><strong>{branch.expense_count}</strong></div><div><span>Approved Entries</span><strong>{summary.approved_entries}</strong></div></div></article>
     </div>}
 
