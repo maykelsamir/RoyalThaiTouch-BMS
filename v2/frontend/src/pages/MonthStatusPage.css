@@ -32,6 +32,9 @@
 .calendarDayTop strong { font-size:18px; }
 .calendarDayTop span { font-size:9px; text-transform:uppercase; letter-spacing:.04em; text-align:right; font-weight:900; }
 .calendarDay small { color:#dce8ea; font-size:10px; }
+.calendarDay em { color:#f4d66f; font-size:9px; font-style:normal; font-weight:900; letter-spacing:.08em; text-transform:uppercase; opacity:.8; }
+.calendarDayEditable { cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+.calendarDayEditable:hover { transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,0,0,.25); border-color:rgba(244,214,111,.62); }
 .day-complete { background:rgba(20,83,45,.5); border-color:rgba(74,222,128,.28); } .day-complete .calendarDayTop span { color:#bbf7d0; }
 .day-pending { background:rgba(30,64,175,.3); border-color:rgba(96,165,250,.28); } .day-pending .calendarDayTop span { color:#bfdbfe; }
 .day-draft { background:rgba(71,85,105,.35); border-color:rgba(148,163,184,.22); } .day-draft .calendarDayTop span { color:#cbd5e1; }
@@ -39,5 +42,22 @@
 .day-rejected { background:rgba(127,29,29,.55); border-color:rgba(248,113,113,.45); } .day-rejected .calendarDayTop span { color:#fca5a5; }
 .day-upcoming { opacity:.58; } .day-upcoming .calendarDayTop span { color:#94a3b8; }
 .legendDot.day-complete { background:#4ade80; } .legendDot.day-pending { background:#60a5fa; } .legendDot.day-draft { background:#94a3b8; } .legendDot.day-missing { background:#f87171; } .legendDot.day-rejected { background:#dc2626; } .legendDot.day-upcoming { background:#64748b; }
+.monthSuccess { margin-bottom:18px; padding:14px 16px; border-radius:14px; color:#bbf7d0; background:rgba(20,83,45,.5); border:1px solid rgba(74,222,128,.35); }
+.monthEditOverlay { position:fixed; inset:0; z-index:25000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,13,17,.82); backdrop-filter:blur(7px); }
+.monthEditModal { width:min(680px,96vw); max-height:94vh; overflow:auto; padding:24px; border-radius:22px; color:#f7fbfc; background:linear-gradient(180deg,#0a4a56,#052f38); border:1px solid rgba(244,214,111,.28); box-shadow:0 28px 80px rgba(0,0,0,.48); }
+.monthEditHeader { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:16px; }
+.monthEditHeader h3 { margin:5px 0; font-size:25px; }
+.monthEditHeader p { margin:0; color:#9bb5ba; }
+.monthEditClose { width:42px; height:42px; padding:0; border-radius:50%; color:#fff; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); font-size:27px; }
+.monthEditWarning { display:grid; gap:5px; margin-bottom:18px; padding:14px; border-radius:14px; color:#fecaca; background:rgba(127,29,29,.34); border:1px solid rgba(248,113,113,.35); }
+.monthEditWarning strong { text-transform:uppercase; letter-spacing:.08em; font-size:12px; }
+.monthEditWarning span { line-height:1.45; }
+.monthEditGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.monthEditGrid label { display:grid; gap:7px; color:#dce8ea; font-size:12px; font-weight:800; }
+.monthEditGrid input, .monthEditGrid select, .monthEditGrid textarea { width:100%; min-height:46px; padding:11px 12px; color:#fff; background:#032b34; border:1px solid rgba(255,255,255,.13); border-radius:12px; }
+.monthEditGrid textarea { min-height:82px; resize:vertical; }
+.monthEditWide { grid-column:1/-1; }
+.monthEditActions { display:flex; justify-content:flex-end; gap:12px; margin-top:20px; }
+.monthEditActions button { min-width:150px; }
 @media (max-width:900px) { .monthOverview { grid-template-columns:1fr; } .monthSummaryGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } .calendarDay { min-height:72px; padding:8px; } .calendarDayTop { display:grid; } .calendarDay small { display:none; } }
-@media (max-width:650px) { .monthToolbar { flex-wrap:wrap; align-items:end; } .monthToolbar label { flex:1 1 160px; } .monthToolbar select { min-width:0; width:100%; } .branchCalendar { padding:14px; overflow-x:auto; } .weekHeader, .calendarGrid { min-width:700px; } .branchCalendarHeader { flex-direction:column; } .branchProgress { text-align:left; } }
+@media (max-width:650px) { .monthToolbar { flex-wrap:wrap; align-items:end; } .monthToolbar label { flex:1 1 160px; } .monthToolbar select { min-width:0; width:100%; } .branchCalendar { padding:14px; overflow-x:auto; } .weekHeader, .calendarGrid { min-width:700px; } .branchCalendarHeader { flex-direction:column; } .branchProgress { text-align:left; } .monthEditOverlay { padding:8px; align-items:flex-end; } .monthEditModal { width:100%; max-height:96vh; padding:18px; border-radius:22px 22px 0 0; } .monthEditGrid { grid-template-columns:1fr; } .monthEditWide { grid-column:auto; } .monthEditActions { display:grid; grid-template-columns:1fr; } .monthEditActions button { width:100%; } }
