@@ -37,6 +37,7 @@ class DailyRevenue(Base):
     branch_id: Mapped[int] = mapped_column(ForeignKey("branches_v2.id", ondelete="CASCADE"), index=True, nullable=False)
     business_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 0), default=0, nullable=False)
+    customer_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     notes: Mapped[str] = mapped_column(String(1000), default="", nullable=False)
     report_image: Mapped[str] = mapped_column(Text, default="", nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False, index=True)
