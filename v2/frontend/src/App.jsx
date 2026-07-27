@@ -13,6 +13,7 @@ import MonthlyExpensesPage from './pages/MonthlyExpensesPage'
 import ReportsPage from './pages/ReportsPage'
 import UserManagementPage from './pages/UserManagementPage'
 import './styles.css'
+import './Dashboard.css'
 
 const emptyCredentials = { username: '', password: '' }
 const navigation = [
