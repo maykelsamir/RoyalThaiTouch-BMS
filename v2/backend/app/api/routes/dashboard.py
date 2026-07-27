@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.finance import Branch, DailyRevenue, Expense
+from app.models.finance import Branch, DailyRevenue, MonthlyExpense
 from app.models.user import User
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -40,10 +40,11 @@ def _build_daily_report(db: Session, current_user: User, target_date: date) -> d
         .where(DailyRevenue.business_date == target_date)
         .group_by(DailyRevenue.branch_id)
     ).all()
-    expense_rows = db.execute(
-        select(Expense.branch_id, func.coalesce(func.sum(Expense.amount), 0))
-        .where(Expense.business_date == target_date)
-        .group_by(Expense.branch_id)
+    fixed_expense_rows = db.execute(
+        select(MonthlyExpense.branch_id, MonthlyExpense.amount).where(
+            MonthlyExpense.year == target_date.year,
+            MonthlyExpense.month == target_date.month,
+        )
     ).all()
 
     revenue_by_branch = {
@@ -54,7 +55,9 @@ def _build_daily_report(db: Session, current_user: User, target_date: date) -> d
         }
         for branch_id, amount, customer_count, entry_count in revenue_rows
     }
-    expense_by_branch = {branch_id: Decimal(amount or 0) for branch_id, amount in expense_rows}
+    # MonthlyExpense is retained as the storage table name for compatibility,
+    # but its amount now represents the branch's fixed expense PER DAY.
+    expense_by_branch = {branch_id: Decimal(amount or 0) for branch_id, amount in fixed_expense_rows}
 
     normalized_role = str(current_user.role or "").strip().lower()
     allowed = set(current_user.allowed_branch_ids or [])
