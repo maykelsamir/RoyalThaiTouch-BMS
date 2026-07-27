@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -29,11 +29,18 @@ def seed_branches(db: Session) -> None:
 
 @router.get("/yesterday")
 def yesterday_dashboard(
+    business_date: date | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     seed_branches(db)
-    target_date = date.today() - timedelta(days=1)
+
+    default_date = date.today() - timedelta(days=1)
+    normalized_role = str(current_user.role or "").strip().lower()
+    if business_date is not None and normalized_role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can select a custom dashboard date")
+    target_date = business_date or default_date
+
     branches = db.scalars(select(Branch).where(Branch.active.is_(True)).order_by(Branch.id)).all()
 
     revenue_rows = db.execute(
@@ -55,7 +62,7 @@ def yesterday_dashboard(
     total_expenses = Decimal(0)
 
     allowed = set(current_user.allowed_branch_ids or [])
-    restrict = current_user.role.lower() not in {"admin", "manager", "accountant"} and bool(allowed)
+    restrict = normalized_role not in {"admin", "manager", "accountant"} and bool(allowed)
 
     for branch in branches:
         if restrict and branch.id not in allowed:
@@ -75,6 +82,7 @@ def yesterday_dashboard(
 
     return {
         "business_date": target_date.isoformat(),
+        "is_custom_date": business_date is not None,
         "branches": branch_cards,
         "company": {
             "revenue": int(total_revenue),
