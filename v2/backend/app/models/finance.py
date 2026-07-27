@@ -29,6 +29,8 @@ class Branch(Base):
     google_maps: Mapped[str] = mapped_column(String(1000), default="", nullable=False)
     manager_name: Mapped[str] = mapped_column(String(160), default="", nullable=False)
     opening_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    company_revenue_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=100, nullable=False)
+    hotel_revenue_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0, nullable=False)
     logo: Mapped[str] = mapped_column(Text, default="", nullable=False)
     cover_image: Mapped[str] = mapped_column(Text, default="", nullable=False)
     notes: Mapped[str] = mapped_column(String(2000), default="", nullable=False)
