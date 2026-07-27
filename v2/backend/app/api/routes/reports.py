@@ -47,21 +47,22 @@ def _months(start: date, end: date):
         year, month = (year + 1, 1) if month == 12 else (year, month + 1)
 
 
-def _allocated_month(amount: Decimal, year: int, month: int, start: date, end: date) -> dict[date, Decimal]:
+def _allocated_month(daily_amount: Decimal, year: int, month: int, start: date, end: date) -> dict[date, Decimal]:
+    """Apply the configured fixed branch expense to every included day.
+
+    The MonthlyExpense table name is retained for backward compatibility, but
+    the stored amount represents a fixed DAILY expense for the selected month.
+    """
     days = monthrange(year, month)[1]
     first, last = date(year, month, 1), date(year, month, days)
     active_start, active_end = max(start, first), min(end, last)
-    if active_start > active_end or amount <= 0:
+    if active_start > active_end or daily_amount <= 0:
         return {}
-    included = (active_end - active_start).days + 1
-    target = (amount * Decimal(included) / Decimal(days)).quantize(Decimal("1"))
-    daily = (amount / Decimal(days)).quantize(Decimal("1"))
-    values = {}
+    values: dict[date, Decimal] = {}
     cursor = active_start
     while cursor <= active_end:
-        values[cursor] = daily
+        values[cursor] = daily_amount
         cursor += timedelta(days=1)
-    values[active_end] += target - sum(values.values(), Decimal(0))
     return values
 
 
@@ -153,17 +154,17 @@ def excel(date_from: date, date_to: date, branch_ids: list[int] | None = Query(d
     summary["A1"].fill = PatternFill("solid", fgColor=dark)
     summary["A1"].alignment = Alignment(horizontal="center")
     summary.append(["Period", str(report.date_from), "to", str(report.date_to)])
-    summary.append(["Company Revenue", float(report.company_revenue), "Customers", report.company_customer_count, "Revenue / Customer", float(report.company_revenue_per_customer), "Expenses", float(report.company_expenses), "Net Profit", float(report.company_net_profit)])
+    summary.append(["Company Revenue", float(report.company_revenue), "Customers", report.company_customer_count, "Revenue / Customer", float(report.company_revenue_per_customer), "Fixed Daily Expenses", float(report.company_expenses), "Net Profit", float(report.company_net_profit)])
     summary.append([])
     if show_branch_summary:
-        summary.append(["Branch", "Revenue", "Customers", "Revenue / Customer", "Allocated Expenses", "Net Profit", "Approved Days", "Missing Days"])
+        summary.append(["Branch", "Revenue", "Customers", "Revenue / Customer", "Fixed Daily Expenses (Period Total)", "Net Profit", "Approved Days", "Missing Days"])
         for cell in summary[summary.max_row]:
             cell.font = Font(bold=True, color="FFFFFF"); cell.fill = PatternFill("solid", fgColor=dark)
         for item in report.branches:
             summary.append([item.branch_name, float(item.revenue), item.customer_count, float(item.revenue_per_customer), float(item.expenses), float(item.net_profit), item.approved_entries, item.missing_days])
     if show_daily_details:
         details = workbook.create_sheet("Daily Details")
-        details.append(["Date", "Branch", "Revenue", "Customers", "Revenue / Customer", "Allocated Expense", "Net Profit", "Status"])
+        details.append(["Date", "Branch", "Revenue", "Customers", "Revenue / Customer", "Fixed Daily Expense", "Net Profit", "Status"])
         for cell in details[1]:
             cell.font = Font(bold=True, color="FFFFFF"); cell.fill = PatternFill("solid", fgColor=dark)
         for item in report.daily_rows:
@@ -188,18 +189,18 @@ def pdf(date_from: date, date_to: date, branch_ids: list[int] | None = Query(def
     document = SimpleDocTemplate(output, pagesize=landscape(A4), rightMargin=10 * mm, leftMargin=10 * mm, topMargin=10 * mm, bottomMargin=10 * mm)
     styles = getSampleStyleSheet()
     story = [Paragraph("Royal Thai Touch ERP - Financial Report", styles["Title"]), Paragraph(f"Period: {report.date_from} to {report.date_to}", styles["Normal"]), Spacer(1, 6 * mm)]
-    totals = [["Revenue", "Customers", "Revenue / Customer", "Expenses", "Net Profit"], [_money(report.company_revenue), f"{report.company_customer_count:,}", _money(report.company_revenue_per_customer), _money(report.company_expenses), _money(report.company_net_profit)]]
+    totals = [["Revenue", "Customers", "Revenue / Customer", "Fixed Daily Expenses", "Net Profit"], [_money(report.company_revenue), f"{report.company_customer_count:,}", _money(report.company_revenue_per_customer), _money(report.company_expenses), _money(report.company_net_profit)]]
     totals_table = Table(totals, repeatRows=1)
     totals_table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#073C46")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("GRID", (0, 0), (-1, -1), 0.5, colors.grey), ("ALIGN", (1, 0), (-1, -1), "RIGHT")]))
     story.extend([totals_table, Spacer(1, 6 * mm)])
     if show_branch_summary:
-        rows = [["Branch", "Revenue", "Customers", "Revenue / Customer", "Expenses", "Net Profit", "Approved", "Missing"]]
+        rows = [["Branch", "Revenue", "Customers", "Revenue / Customer", "Period Expenses", "Net Profit", "Approved", "Missing"]]
         rows.extend([[item.branch_name, _money(item.revenue), f"{item.customer_count:,}", _money(item.revenue_per_customer), _money(item.expenses), _money(item.net_profit), item.approved_entries, item.missing_days] for item in report.branches])
         table = Table(rows, repeatRows=1)
         table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#073C46")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("GRID", (0, 0), (-1, -1), 0.35, colors.grey), ("FONTSIZE", (0, 0), (-1, -1), 8), ("ALIGN", (1, 1), (-1, -1), "RIGHT")]))
         story.extend([Paragraph("Branch Summary", styles["Heading2"]), table, Spacer(1, 6 * mm)])
     if show_daily_details:
-        rows = [["Date", "Branch", "Revenue", "Customers", "Revenue / Customer", "Expense", "Net Profit", "Status"]]
+        rows = [["Date", "Branch", "Revenue", "Customers", "Revenue / Customer", "Fixed Daily Expense", "Net Profit", "Status"]]
         rows.extend([[str(item.business_date), item.branch_name, _money(item.revenue), f"{item.customer_count:,}", _money(item.revenue_per_customer), _money(item.allocated_expense), _money(item.net_profit), item.entry_status] for item in report.daily_rows])
         table = Table(rows, repeatRows=1)
         table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#073C46")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("GRID", (0, 0), (-1, -1), 0.25, colors.grey), ("FONTSIZE", (0, 0), (-1, -1), 7), ("ALIGN", (2, 1), (-2, -1), "RIGHT")]))
