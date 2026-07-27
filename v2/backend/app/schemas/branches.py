@@ -1,6 +1,7 @@
 from datetime import date, datetime
+from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class BranchWrite(BaseModel):
@@ -22,10 +23,19 @@ class BranchWrite(BaseModel):
     google_maps: str = Field(default="", max_length=1000)
     manager_name: str = Field(default="", max_length=160)
     opening_date: date | None = None
+    company_revenue_percentage: Decimal = Field(default=Decimal("100"), ge=0, le=100)
+    hotel_revenue_percentage: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     logo: str = ""
     cover_image: str = ""
     notes: str = Field(default="", max_length=2000)
     active: bool = True
+
+    @model_validator(mode="after")
+    def validate_revenue_share(self):
+        total = self.company_revenue_percentage + self.hotel_revenue_percentage
+        if total != Decimal("100"):
+            raise ValueError("Company and hotel revenue percentages must total 100%")
+        return self
 
 
 class BranchView(BranchWrite):
