@@ -1,0 +1,4 @@
+/* Sidebar final order helpers */
+.logoutBtn {
+  order: 9999 !important;
+}

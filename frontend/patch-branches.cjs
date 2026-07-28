@@ -1,0 +1,20 @@
+const fs = require('fs');
+const path = 'src/main.jsx';
+let s = fs.readFileSync(path, 'utf8');
+
+s = s.replace(
+  "const[branchForm,setBranchForm]=useState({name:'',address:'Erbil'});const[employees,setEmployees]=useState([]);",
+  "const[branchForm,setBranchForm]=useState({name:'',address:'Erbil'});const[branchEdits,setBranchEdits]=useState({});const[employees,setEmployees]=useState([]);"
+);
+
+s = s.replace(
+  "async function closeDay(){await api(`/daily-entry/close?branch_id=${entry.branch_id}&business_date=${entry.business_date}`,{method:'POST'});setMessage('Day closed successfully')}async function createBranch(e){e.preventDefault();await api('/branches',{method:'POST',body:JSON.stringify({...branchForm,active:true})});setBranchForm({name:'',address:'Erbil'});await loadData()}async function loadReport(){setReport(await api(`/reports/summary?${reportQuery()}`))}async function loadAuditLogs(){setAuditLogs(await api('/audit-logs'))}",
+  "async function closeDay(){await api(`/daily-entry/close?branch_id=${entry.branch_id}&business_date=${entry.business_date}`,{method:'POST'});setMessage('Day closed successfully')}async function createBranch(e){e.preventDefault();if(!window.confirm('Confirm adding this center?'))return;await api('/branches',{method:'POST',body:JSON.stringify({...branchForm,active:true})});setBranchForm({name:'',address:'Erbil'});setMessage('Center added successfully');await loadData()}async function updateBranch(b){const edit=branchEdits[b.id]||{};const name=(edit.name??b.name).trim();const address=(edit.address??b.address??'').trim();if(!name)return setMessage('Center name is required');if(!window.confirm('Confirm saving changes for this center?'))return;await api(`/branches/${b.id}`,{method:'PATCH',body:JSON.stringify({name,address,active:true})});setMessage('Center updated successfully');await loadData()}async function deleteBranch(b){if(!window.confirm(`Confirm deleting center: ${b.name}?`))return;await api(`/branches/${b.id}`,{method:'DELETE'});setMessage('Center deleted successfully');await loadData()}async function loadReport(){setReport(await api(`/reports/summary?${reportQuery()}`))}async function loadAuditLogs(){setAuditLogs(await api('/audit-logs'))}"
+);
+
+s = s.replace(
+  `{page==='branches'&&<><section className="panel"><h3>Add Branch</h3><form className="inlineForm" onSubmit={createBranch}><input value={branchForm.name} onChange={e=>setBranchForm({...branchForm,name:e.target.value})} required/><input value={branchForm.address} onChange={e=>setBranchForm({...branchForm,address:e.target.value})}/><button>Add Branch</button></form></section><section className="panel"><h3>Visible Branches</h3><table><tbody>{visibleBranches.map(b=><tr key={b.id}><td>{b.id}</td><td>{b.name}</td><td>{b.address}</td></tr>)}</tbody></table></section></>}`,
+  `{page==='branches'&&<><section className="panel"><h3>Add Center</h3><form className="inlineForm" onSubmit={createBranch}><input value={branchForm.name} onChange={e=>setBranchForm({...branchForm,name:e.target.value})} placeholder="Center name" required/><input value={branchForm.address} onChange={e=>setBranchForm({...branchForm,address:e.target.value})} placeholder="Address"/><button>Add Center</button></form><p style={{color:'#a1a1aa'}}>A confirmation message will appear before adding, saving, or deleting any center.</p></section><section className="panel"><h3>Manage Centers</h3><table><thead><tr><th>ID</th><th>Center Name</th><th>Address</th><th>Actions</th></tr></thead><tbody>{visibleBranches.map(b=>{const edit=branchEdits[b.id]||{};return <tr key={b.id}><td>{b.id}</td><td><input value={edit.name??b.name} onChange={e=>setBranchEdits(p=>({...p,[b.id]:{...(p[b.id]||{}),name:e.target.value}}))}/></td><td><input value={edit.address??(b.address||'')} onChange={e=>setBranchEdits(p=>({...p,[b.id]:{...(p[b.id]||{}),address:e.target.value}}))}/></td><td><div className="buttonGroup"><button onClick={()=>updateBranch(b)}><Save size={16}/> Save</button><button className="iconBtn" onClick={()=>deleteBranch(b)}><Trash2 size={16}/></button></div></td></tr>})}</tbody></table></section></>}`
+);
+
+fs.writeFileSync(path, s);
