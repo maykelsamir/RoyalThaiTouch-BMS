@@ -13,14 +13,15 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from sqlalchemy import select, tuple_
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.finance import Branch, DailyRevenue, MonthlyExpense
+from app.models.finance import Branch, DailyRevenue
 from app.models.user import User
 from app.schemas.reports import FinancialReportView, ReportBranchOption, ReportBranchSummary, ReportDailyRow
+from app.services.effective_expenses import effective_amounts
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -79,8 +80,7 @@ def _report(start: date, end: date, ids: list[int], include_unapproved: bool, db
     revenues = list(db.scalars(revenue_query)) if ids else []
     revenue_map = {(item.branch_id, item.business_date): item for item in revenues}
     periods = list(_months(start, end))
-    expenses = list(db.scalars(select(MonthlyExpense).where(MonthlyExpense.branch_id.in_(ids), tuple_(MonthlyExpense.year, MonthlyExpense.month).in_(periods)))) if ids else []
-    expense_map = {(item.branch_id, item.year, item.month): Decimal(item.amount or 0) for item in expenses}
+    expense_map = effective_amounts(db, ids, periods)
 
     daily_rows, summaries = [], []
     gross_total = company_share_total = hotel_share_total = expense_total = Decimal(0)
