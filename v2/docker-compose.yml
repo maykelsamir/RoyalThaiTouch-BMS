@@ -22,10 +22,34 @@ services:
       DATABASE_URL: postgresql://rtt_v2:rtt_v2_dev_password@db:5432/royalthaitouch_v2
       JWT_SECRET: change-this-before-production-with-a-long-random-value
       BACKUP_DIR: /app/backups
+      STORAGE_DIR: /app/storage
     ports:
       - "127.0.0.1:18000:8000"
     volumes:
       - rtt_v2_backups:/app/backups
+      - rtt_v2_documents:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Baghdad
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: royalthaitouch_v2
+      PGUSER: rtt_v2
+      PGPASSWORD: rtt_v2_dev_password
+      BACKUP_DIR: /backups
+      DOCUMENTS_DIR: /documents
+      BACKUP_HOUR: 1
+      BACKUP_MINUTE: 0
+      BACKUP_RETENTION_DAYS: 30
+    volumes:
+      - rtt_v2_backups:/backups
+      - rtt_v2_documents:/documents:ro
     depends_on:
       db:
         condition: service_healthy
@@ -41,3 +65,4 @@ services:
 volumes:
   rtt_v2_postgres:
   rtt_v2_backups:
+  rtt_v2_documents:
