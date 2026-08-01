@@ -260,17 +260,24 @@ def pdf(date_from: date, date_to: date, branch_ids: list[int] | None = Query(def
     dark = colors.HexColor("#073C46")
     red = colors.HexColor("#D62828")
     story = [Paragraph("Royal Thai Touch ERP - Financial Report", styles["Title"]), Paragraph(f"Period: {report.date_from} to {report.date_to}", styles["Normal"]), Spacer(1, 5*mm)]
+
     headers = ["Gross Revenue"]
     values = [_money(report.company_revenue)]
     if show_revenue_sharing:
         headers += ["Company Share", "Hotel Share"]
         values += [_money(report.company_share), _money(report.hotel_share)]
-    headers += ["Customers", "Expenses", "Company Net Profit"]
-    values += [f"{report.company_customer_count:,}", _money(report.company_expenses), _money(report.company_net_profit)]
+    headers += ["Customers"]
+    values += [f"{report.company_customer_count:,}"]
+    if show_expenses:
+        headers += ["Expenses"]
+        values += [_money(report.company_expenses)]
+    headers += ["Company Net Profit"]
+    values += [_money(report.company_net_profit)]
+
     totals = Table([headers, values], repeatRows=1)
     commands = [("BACKGROUND",(0,0),(-1,0),dark),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.5,colors.grey),("ALIGN",(1,0),(-1,-1),"RIGHT")]
     if report.company_net_profit < 0:
-        idx = len(headers) - 1
+        idx = headers.index("Company Net Profit")
         commands += [("BACKGROUND",(idx,1),(idx,1),red),("TEXTCOLOR",(idx,1),(idx,1),colors.white),("FONTNAME",(idx,1),(idx,1),"Helvetica-Bold")]
     totals.setStyle(TableStyle(commands))
     story += [totals, Spacer(1,5*mm)]
@@ -279,13 +286,19 @@ def pdf(date_from: date, date_to: date, branch_ids: list[int] | None = Query(def
         headers = ["Branch", "Gross Revenue"]
         if show_revenue_sharing:
             headers += ["Co %", "Hotel %", "Company Share", "Hotel Share"]
-        headers += ["Customers", "Expenses", "Company Net", "Approved", "Missing"]
+        headers += ["Customers"]
+        if show_expenses:
+            headers += ["Expenses"]
+        headers += ["Company Net", "Approved", "Missing"]
         rows = [headers]
         for item in report.branches:
             row = [item.branch_name, _money(item.revenue)]
             if show_revenue_sharing:
                 row += [f"{item.company_percentage}%", f"{item.hotel_percentage}%", _money(item.company_share), _money(item.hotel_share)]
-            row += [f"{item.customer_count:,}", _money(item.expenses), _money(item.net_profit), item.approved_entries, item.missing_days]
+            row += [f"{item.customer_count:,}"]
+            if show_expenses:
+                row += [_money(item.expenses)]
+            row += [_money(item.net_profit), item.approved_entries, item.missing_days]
             rows.append(row)
         table = Table(rows, repeatRows=1)
         profit_col = headers.index("Company Net")
@@ -300,13 +313,19 @@ def pdf(date_from: date, date_to: date, branch_ids: list[int] | None = Query(def
         headers = ["Date", "Branch", "Gross"]
         if show_revenue_sharing:
             headers += ["Co %", "Hotel %", "Company Share", "Hotel Share"]
-        headers += ["Customers", "Expense", "Company Net", "Status"]
+        headers += ["Customers"]
+        if show_expenses:
+            headers += ["Expense"]
+        headers += ["Company Net", "Status"]
         rows = [headers]
         for item in report.daily_rows:
             row = [str(item.business_date), item.branch_name, _money(item.revenue)]
             if show_revenue_sharing:
                 row += [f"{item.company_percentage}%", f"{item.hotel_percentage}%", _money(item.company_share), _money(item.hotel_share)]
-            row += [f"{item.customer_count:,}", _money(item.allocated_expense), _money(item.net_profit), item.entry_status]
+            row += [f"{item.customer_count:,}"]
+            if show_expenses:
+                row += [_money(item.allocated_expense)]
+            row += [_money(item.net_profit), item.entry_status]
             rows.append(row)
         table = Table(rows, repeatRows=1)
         profit_col = headers.index("Company Net")
