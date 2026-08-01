@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.finance import Branch, MonthlyExpense
 from app.models.user import User
 from app.schemas.monthly_expense import MonthlyExpenseSave, MonthlyExpenseView
+from app.services.effective_expenses import effective_expenses
 
 router = APIRouter(prefix="/monthly-expenses", tags=["monthly-expenses"])
 
@@ -15,17 +16,21 @@ def _can_access_branch(user: User, branch_id: int) -> bool:
     return user.role.lower() == "admin" or not user.allowed_branch_ids or branch_id in user.allowed_branch_ids
 
 
-def _view(branch: Branch, item: MonthlyExpense | None, year: int, month: int) -> MonthlyExpenseView:
+def _view(branch: Branch, source: MonthlyExpense | None, year: int, month: int) -> MonthlyExpenseView:
+    is_current = bool(source and source.year == year and source.month == month)
     return MonthlyExpenseView(
-        id=item.id if item else None,
+        id=source.id if is_current else None,
         branch_id=branch.id,
         branch_name=branch.name,
         year=year,
         month=month,
-        amount=item.amount if item else 0,
-        notes=item.notes if item else "",
-        updated_by=item.updated_by if item else None,
-        updated_at=item.updated_at if item else None,
+        amount=source.amount if source else 0,
+        notes=source.notes if source else "",
+        inherited=bool(source and not is_current),
+        source_year=source.year if source else None,
+        source_month=source.month if source else None,
+        updated_by=source.updated_by if source else None,
+        updated_at=source.updated_at if source else None,
     )
 
 
@@ -41,9 +46,8 @@ def list_monthly_expenses(
 
     branches = list(db.scalars(select(Branch).where(Branch.active.is_(True)).order_by(Branch.name)))
     branches = [branch for branch in branches if _can_access_branch(current_user, branch.id)]
-    entries = list(db.scalars(select(MonthlyExpense).where(MonthlyExpense.year == year, MonthlyExpense.month == month)))
-    by_branch = {entry.branch_id: entry for entry in entries}
-    return [_view(branch, by_branch.get(branch.id), year, month) for branch in branches]
+    effective = effective_expenses(db, [branch.id for branch in branches], [(year, month)])
+    return [_view(branch, effective.get((branch.id, year, month)), year, month) for branch in branches]
 
 
 @router.put("", response_model=MonthlyExpenseView)
