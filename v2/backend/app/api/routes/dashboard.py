@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.finance import Branch, DailyRevenue, MonthlyExpense
+from app.models.finance import Branch, DailyRevenue
 from app.models.user import User
+from app.services.effective_expenses import effective_amounts
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -31,11 +32,8 @@ def _build_daily_report(db: Session, current_user: User, target_date: date) -> d
         select(DailyRevenue.branch_id, func.coalesce(func.sum(DailyRevenue.amount), 0), func.coalesce(func.sum(DailyRevenue.customer_count), 0), func.count(DailyRevenue.id))
         .where(DailyRevenue.business_date == target_date).group_by(DailyRevenue.branch_id)
     ).all()
-    fixed_expense_rows = db.execute(
-        select(MonthlyExpense.branch_id, MonthlyExpense.amount).where(MonthlyExpense.year == target_date.year, MonthlyExpense.month == target_date.month)
-    ).all()
     revenue_by_branch = {branch_id: {"amount": Decimal(amount or 0), "customer_count": int(customers or 0), "entry_count": int(entries or 0)} for branch_id, amount, customers, entries in revenue_rows}
-    expense_by_branch = {branch_id: Decimal(amount or 0) for branch_id, amount in fixed_expense_rows}
+    expense_by_period = effective_amounts(db, [branch.id for branch in branches], [(target_date.year, target_date.month)])
     normalized_role = str(current_user.role or "").strip().lower()
     allowed = set(current_user.allowed_branch_ids or [])
     restrict = normalized_role not in {"admin", "manager", "accountant"} and bool(allowed)
@@ -51,7 +49,7 @@ def _build_daily_report(db: Session, current_user: User, target_date: date) -> d
         hotel_percentage = Decimal(branch.hotel_revenue_percentage or 0)
         company_share = _share(gross, company_percentage)
         hotel_share = gross - company_share
-        expenses = expense_by_branch.get(branch.id, Decimal(0))
+        expenses = expense_by_period.get((branch.id, target_date.year, target_date.month), Decimal(0))
         has_entry = revenue_data["entry_count"] > 0
         submitted_centers += int(has_entry)
         total_gross += gross; total_company += company_share; total_hotel += hotel_share; total_expenses += expenses; total_customers += revenue_data["customer_count"]
