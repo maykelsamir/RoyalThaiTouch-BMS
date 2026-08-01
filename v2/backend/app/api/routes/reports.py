@@ -33,9 +33,9 @@ def _require(user: User, permission: str = "reports.view") -> None:
 
 def _branch_ids(user: User, requested: list[int] | None, db: Session) -> list[int]:
     active = list(db.scalars(select(Branch.id).where(Branch.active.is_(True))))
-    allowed = active if user.role.lower() == "admin" or not user.allowed_branch_ids else [item for item in active if item in user.allowed_branch_ids]
+    allowed = active if user.role.lower() == "admin" or not user.allowed_branch_ids else [x for x in active if x in user.allowed_branch_ids]
     if requested:
-        if any(item not in allowed for item in requested):
+        if any(x not in allowed for x in requested):
             raise HTTPException(status_code=403, detail="Branch access denied")
         return list(dict.fromkeys(requested))
     return allowed
@@ -48,13 +48,12 @@ def _months(start: date, end: date):
         year, month = (year + 1, 1) if month == 12 else (year, month + 1)
 
 
-def _allocated_month(daily_amount: Decimal, year: int, month: int, start: date, end: date) -> dict[date, Decimal]:
-    first = date(year, month, 1)
-    last = date(year, month, monthrange(year, month)[1])
-    cursor, active_end = max(start, first), min(end, last)
+def _allocated_month(daily: Decimal, year: int, month: int, start: date, end: date) -> dict[date, Decimal]:
+    cursor = max(start, date(year, month, 1))
+    active_end = min(end, date(year, month, monthrange(year, month)[1]))
     values: dict[date, Decimal] = {}
-    while cursor <= active_end and daily_amount > 0:
-        values[cursor] = daily_amount
+    while cursor <= active_end and daily > 0:
+        values[cursor] = daily
         cursor += timedelta(days=1)
     return values
 
@@ -74,17 +73,17 @@ def _report(start: date, end: date, ids: list[int], include_unapproved: bool, db
         raise HTTPException(status_code=422, detail="Report range cannot exceed two years")
 
     branches = list(db.scalars(select(Branch).where(Branch.id.in_(ids)).order_by(Branch.name))) if ids else []
-    revenue_query = select(DailyRevenue).where(DailyRevenue.branch_id.in_(ids), DailyRevenue.business_date.between(start, end))
+    query = select(DailyRevenue).where(DailyRevenue.branch_id.in_(ids), DailyRevenue.business_date.between(start, end))
     if not include_unapproved:
-        revenue_query = revenue_query.where(DailyRevenue.status == "approved")
-    revenues = list(db.scalars(revenue_query)) if ids else []
-    revenue_map = {(item.branch_id, item.business_date): item for item in revenues}
+        query = query.where(DailyRevenue.status == "approved")
+    revenues = list(db.scalars(query)) if ids else []
+    revenue_map = {(x.branch_id, x.business_date): x for x in revenues}
     periods = list(_months(start, end))
     expense_map = effective_amounts(db, ids, periods)
 
     daily_rows, summaries = [], []
-    gross_total = company_share_total = hotel_share_total = expense_total = Decimal(0)
-    company_customers = 0
+    gross_total = company_total = hotel_total = expense_total = Decimal(0)
+    customer_total = 0
 
     for branch in branches:
         company_pct = _percentage(branch.company_revenue_percentage)
@@ -93,8 +92,8 @@ def _report(start: date, end: date, ids: list[int], include_unapproved: bool, db
         for year, month in periods:
             allocation.update(_allocated_month(expense_map.get((branch.id, year, month), Decimal(0)), year, month, start, end))
 
-        branch_gross = branch_company = branch_hotel = Decimal(0)
-        branch_customers = approved = missing = 0
+        gross_sum = company_sum = hotel_sum = Decimal(0)
+        customer_sum = approved = missing = 0
         cursor = start
         while cursor <= end:
             entry = revenue_map.get((branch.id, cursor))
@@ -110,33 +109,33 @@ def _report(start: date, end: date, ids: list[int], include_unapproved: bool, db
                 company_share=company_share, hotel_share=hotel_share, customer_count=customers,
                 allocated_expense=expense, net_profit=company_share - expense, entry_status=status,
             ))
-            branch_gross += gross
-            branch_company += company_share
-            branch_hotel += hotel_share
-            branch_customers += customers
+            gross_sum += gross
+            company_sum += company_share
+            hotel_sum += hotel_share
+            customer_sum += customers
             approved += int(bool(entry and entry.status == "approved"))
             missing += int(entry is None)
             cursor += timedelta(days=1)
 
-        branch_expenses = sum(allocation.values(), Decimal(0))
+        expenses = sum(allocation.values(), Decimal(0))
         summaries.append(ReportBranchSummary(
-            branch_id=branch.id, branch_name=branch.name, revenue=branch_gross,
+            branch_id=branch.id, branch_name=branch.name, revenue=gross_sum,
             company_percentage=company_pct, hotel_percentage=hotel_pct,
-            company_share=branch_company, hotel_share=branch_hotel, customer_count=branch_customers,
-            expenses=branch_expenses, net_profit=branch_company - branch_expenses,
+            company_share=company_sum, hotel_share=hotel_sum, customer_count=customer_sum,
+            expenses=expenses, net_profit=company_sum - expenses,
             approved_entries=approved, missing_days=missing,
         ))
-        gross_total += branch_gross
-        company_share_total += branch_company
-        hotel_share_total += branch_hotel
-        expense_total += branch_expenses
-        company_customers += branch_customers
+        gross_total += gross_sum
+        company_total += company_sum
+        hotel_total += hotel_sum
+        expense_total += expenses
+        customer_total += customer_sum
 
     return FinancialReportView(
         date_from=start, date_to=end, generated_at=datetime.now(timezone.utc).isoformat(),
-        company_revenue=gross_total, company_share=company_share_total, hotel_share=hotel_share_total,
-        company_customer_count=company_customers, company_expenses=expense_total,
-        company_net_profit=company_share_total - expense_total, branches=summaries, daily_rows=daily_rows,
+        company_revenue=gross_total, company_share=company_total, hotel_share=hotel_total,
+        company_customer_count=customer_total, company_expenses=expense_total,
+        company_net_profit=company_total - expense_total, branches=summaries, daily_rows=daily_rows,
     )
 
 
@@ -145,7 +144,7 @@ def branches(current_user: User = Depends(get_current_user), db: Session = Depen
     _require(current_user)
     ids = _branch_ids(current_user, None, db)
     rows = list(db.scalars(select(Branch).where(Branch.id.in_(ids)).order_by(Branch.name))) if ids else []
-    return [ReportBranchOption(id=item.id, name=item.name) for item in rows]
+    return [ReportBranchOption(id=x.id, name=x.name) for x in rows]
 
 
 @router.get("", response_model=FinancialReportView)
@@ -162,6 +161,12 @@ def _money(value: Decimal) -> str:
     return f"{value:,.0f} IQD"
 
 
+def _append_optional(headers: list, row: list, enabled: bool, header: str, value) -> None:
+    if enabled:
+        headers.append(header)
+        row.append(value)
+
+
 @router.get("/export/excel")
 def excel(date_from: date, date_to: date, branch_ids: list[int] | None = Query(default=None), include_unapproved: bool = False, show_revenue: bool = True, show_expenses: bool = True, show_profit: bool = True, show_revenue_sharing: bool = True, show_branch_summary: bool = True, show_daily_details: bool = True, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _require(current_user, "reports.export_excel")
@@ -176,61 +181,90 @@ def excel(date_from: date, date_to: date, branch_ids: list[int] | None = Query(d
     summary["A1"].fill = PatternFill("solid", fgColor=dark)
     summary["A1"].alignment = Alignment(horizontal="center")
     summary.append(["Period", str(report.date_from), "to", str(report.date_to)])
-    totals = ["Gross Revenue", float(report.company_revenue)]
+
+    totals_headers, totals_values = [], []
+    _append_optional(totals_headers, totals_values, show_revenue, "Gross Revenue", float(report.company_revenue))
     if show_revenue_sharing:
-        totals += ["Company Share", float(report.company_share), "Hotel Share", float(report.hotel_share)]
-    totals += ["Customers", report.company_customer_count, "Expenses", float(report.company_expenses), "Company Net Profit", float(report.company_net_profit)]
-    summary.append(totals)
+        totals_headers += ["Company Share", "Hotel Share"]
+        totals_values += [float(report.company_share), float(report.hotel_share)]
+    totals_headers.append("Customers")
+    totals_values.append(report.company_customer_count)
+    _append_optional(totals_headers, totals_values, show_expenses, "Expenses", float(report.company_expenses))
+    _append_optional(totals_headers, totals_values, show_profit, "Company Net Profit", float(report.company_net_profit))
+    summary.append(totals_headers)
+    summary.append(totals_values)
     summary.append([])
 
     if show_branch_summary:
-        headers = ["Branch", "Gross Revenue"]
-        if show_revenue_sharing:
-            headers += ["Company %", "Hotel %", "Company Share", "Hotel Share"]
-        headers += ["Customers", "Expenses", "Company Net Profit", "Approved Days", "Missing Days"]
+        headers = ["Branch"]
+        if show_revenue: headers.append("Gross Revenue")
+        if show_revenue_sharing: headers += ["Company %", "Hotel %", "Company Share", "Hotel Share"]
+        headers.append("Customers")
+        if show_expenses: headers.append("Expenses")
+        if show_profit: headers.append("Company Net Profit")
+        headers += ["Approved Days", "Missing Days"]
         summary.append(headers)
         for cell in summary[summary.max_row]:
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor=dark)
-        profit_col = headers.index("Company Net Profit") + 1
+        profit_col = headers.index("Company Net Profit") + 1 if show_profit else None
         for item in report.branches:
-            row = [item.branch_name, float(item.revenue)]
-            if show_revenue_sharing:
-                row += [float(item.company_percentage), float(item.hotel_percentage), float(item.company_share), float(item.hotel_share)]
-            row += [item.customer_count, float(item.expenses), float(item.net_profit), item.approved_entries, item.missing_days]
+            row = [item.branch_name]
+            if show_revenue: row.append(float(item.revenue))
+            if show_revenue_sharing: row += [float(item.company_percentage), float(item.hotel_percentage), float(item.company_share), float(item.hotel_share)]
+            row.append(item.customer_count)
+            if show_expenses: row.append(float(item.expenses))
+            if show_profit: row.append(float(item.net_profit))
+            row += [item.approved_entries, item.missing_days]
             summary.append(row)
-            if item.net_profit < 0:
+            if show_profit and item.net_profit < 0:
                 cell = summary.cell(summary.max_row, profit_col)
                 cell.fill = PatternFill("solid", fgColor=red)
                 cell.font = Font(bold=True, color="FFFFFF")
 
     if show_revenue_sharing:
         sharing = workbook.create_sheet("Revenue Sharing")
-        sharing.append(["Branch", "Gross Revenue", "Company %", "Hotel %", "Company Share", "Hotel Share", "Expenses", "Company Net Profit"])
+        headers = ["Branch"]
+        if show_revenue: headers.append("Gross Revenue")
+        headers += ["Company %", "Hotel %", "Company Share", "Hotel Share"]
+        if show_expenses: headers.append("Expenses")
+        if show_profit: headers.append("Company Net Profit")
+        sharing.append(headers)
         for cell in sharing[1]:
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor=dark)
         for item in report.branches:
-            sharing.append([item.branch_name, float(item.revenue), float(item.company_percentage), float(item.hotel_percentage), float(item.company_share), float(item.hotel_share), float(item.expenses), float(item.net_profit)])
+            row = [item.branch_name]
+            if show_revenue: row.append(float(item.revenue))
+            row += [float(item.company_percentage), float(item.hotel_percentage), float(item.company_share), float(item.hotel_share)]
+            if show_expenses: row.append(float(item.expenses))
+            if show_profit: row.append(float(item.net_profit))
+            sharing.append(row)
 
     if show_daily_details:
         details = workbook.create_sheet("Daily Details")
-        headers = ["Date", "Branch", "Gross Revenue"]
-        if show_revenue_sharing:
-            headers += ["Company %", "Hotel %", "Company Share", "Hotel Share"]
-        headers += ["Customers", "Fixed Daily Expense", "Company Net Profit", "Status"]
+        headers = ["Date", "Branch"]
+        if show_revenue: headers.append("Gross Revenue")
+        if show_revenue_sharing: headers += ["Company %", "Hotel %", "Company Share", "Hotel Share"]
+        headers.append("Customers")
+        if show_expenses: headers.append("Fixed Daily Expense")
+        if show_profit: headers.append("Company Net Profit")
+        headers.append("Status")
         details.append(headers)
         for cell in details[1]:
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor=dark)
-        profit_col = headers.index("Company Net Profit") + 1
+        profit_col = headers.index("Company Net Profit") + 1 if show_profit else None
         for item in report.daily_rows:
-            row = [item.business_date, item.branch_name, float(item.revenue)]
-            if show_revenue_sharing:
-                row += [float(item.company_percentage), float(item.hotel_percentage), float(item.company_share), float(item.hotel_share)]
-            row += [item.customer_count, float(item.allocated_expense), float(item.net_profit), item.entry_status]
+            row = [item.business_date, item.branch_name]
+            if show_revenue: row.append(float(item.revenue))
+            if show_revenue_sharing: row += [float(item.company_percentage), float(item.hotel_percentage), float(item.company_share), float(item.hotel_share)]
+            row.append(item.customer_count)
+            if show_expenses: row.append(float(item.allocated_expense))
+            if show_profit: row.append(float(item.net_profit))
+            row.append(item.entry_status)
             details.append(row)
-            if item.net_profit < 0:
+            if show_profit and item.net_profit < 0:
                 cell = details.cell(details.max_row, profit_col)
                 cell.fill = PatternFill("solid", fgColor=red)
                 cell.font = Font(bold=True, color="FFFFFF")
@@ -257,82 +291,79 @@ def pdf(date_from: date, date_to: date, branch_ids: list[int] | None = Query(def
     output = BytesIO()
     document = SimpleDocTemplate(output, pagesize=landscape(A4), rightMargin=8*mm, leftMargin=8*mm, topMargin=8*mm, bottomMargin=8*mm)
     styles = getSampleStyleSheet()
-    dark = colors.HexColor("#073C46")
-    red = colors.HexColor("#D62828")
+    dark, red = colors.HexColor("#073C46"), colors.HexColor("#D62828")
     story = [Paragraph("Royal Thai Touch ERP - Financial Report", styles["Title"]), Paragraph(f"Period: {report.date_from} to {report.date_to}", styles["Normal"]), Spacer(1, 5*mm)]
 
-    headers = ["Gross Revenue"]
-    values = [_money(report.company_revenue)]
+    headers, values = [], []
+    _append_optional(headers, values, show_revenue, "Gross Revenue", _money(report.company_revenue))
     if show_revenue_sharing:
         headers += ["Company Share", "Hotel Share"]
         values += [_money(report.company_share), _money(report.hotel_share)]
-    headers += ["Customers"]
-    values += [f"{report.company_customer_count:,}"]
-    if show_expenses:
-        headers += ["Expenses"]
-        values += [_money(report.company_expenses)]
-    headers += ["Company Net Profit"]
-    values += [_money(report.company_net_profit)]
-
+    headers.append("Customers")
+    values.append(f"{report.company_customer_count:,}")
+    _append_optional(headers, values, show_expenses, "Expenses", _money(report.company_expenses))
+    _append_optional(headers, values, show_profit, "Company Net Profit", _money(report.company_net_profit))
     totals = Table([headers, values], repeatRows=1)
     commands = [("BACKGROUND",(0,0),(-1,0),dark),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.5,colors.grey),("ALIGN",(1,0),(-1,-1),"RIGHT")]
-    if report.company_net_profit < 0:
+    if show_profit and report.company_net_profit < 0:
         idx = headers.index("Company Net Profit")
         commands += [("BACKGROUND",(idx,1),(idx,1),red),("TEXTCOLOR",(idx,1),(idx,1),colors.white),("FONTNAME",(idx,1),(idx,1),"Helvetica-Bold")]
     totals.setStyle(TableStyle(commands))
     story += [totals, Spacer(1,5*mm)]
 
     if show_branch_summary:
-        headers = ["Branch", "Gross Revenue"]
-        if show_revenue_sharing:
-            headers += ["Co %", "Hotel %", "Company Share", "Hotel Share"]
-        headers += ["Customers"]
-        if show_expenses:
-            headers += ["Expenses"]
-        headers += ["Company Net", "Approved", "Missing"]
+        headers = ["Branch"]
+        if show_revenue: headers.append("Gross Revenue")
+        if show_revenue_sharing: headers += ["Co %", "Hotel %", "Company Share", "Hotel Share"]
+        headers.append("Customers")
+        if show_expenses: headers.append("Expenses")
+        if show_profit: headers.append("Company Net")
+        headers += ["Approved", "Missing"]
         rows = [headers]
         for item in report.branches:
-            row = [item.branch_name, _money(item.revenue)]
-            if show_revenue_sharing:
-                row += [f"{item.company_percentage}%", f"{item.hotel_percentage}%", _money(item.company_share), _money(item.hotel_share)]
-            row += [f"{item.customer_count:,}"]
-            if show_expenses:
-                row += [_money(item.expenses)]
-            row += [_money(item.net_profit), item.approved_entries, item.missing_days]
+            row = [item.branch_name]
+            if show_revenue: row.append(_money(item.revenue))
+            if show_revenue_sharing: row += [f"{item.company_percentage}%", f"{item.hotel_percentage}%", _money(item.company_share), _money(item.hotel_share)]
+            row.append(f"{item.customer_count:,}")
+            if show_expenses: row.append(_money(item.expenses))
+            if show_profit: row.append(_money(item.net_profit))
+            row += [item.approved_entries, item.missing_days]
             rows.append(row)
         table = Table(rows, repeatRows=1)
-        profit_col = headers.index("Company Net")
         commands = [("BACKGROUND",(0,0),(-1,0),dark),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.3,colors.grey),("FONTSIZE",(0,0),(-1,-1),6.8),("ALIGN",(1,1),(-1,-1),"RIGHT")]
-        for i, item in enumerate(report.branches, 1):
-            if item.net_profit < 0:
-                commands += [("BACKGROUND",(profit_col,i),(profit_col,i),red),("TEXTCOLOR",(profit_col,i),(profit_col,i),colors.white)]
+        if show_profit:
+            profit_col = headers.index("Company Net")
+            for i, item in enumerate(report.branches, 1):
+                if item.net_profit < 0:
+                    commands += [("BACKGROUND",(profit_col,i),(profit_col,i),red),("TEXTCOLOR",(profit_col,i),(profit_col,i),colors.white)]
         table.setStyle(TableStyle(commands))
         story += [Paragraph("Branch Summary", styles["Heading2"]), table, Spacer(1,5*mm)]
 
     if show_daily_details:
-        headers = ["Date", "Branch", "Gross"]
-        if show_revenue_sharing:
-            headers += ["Co %", "Hotel %", "Company Share", "Hotel Share"]
-        headers += ["Customers"]
-        if show_expenses:
-            headers += ["Expense"]
-        headers += ["Company Net", "Status"]
+        headers = ["Date", "Branch"]
+        if show_revenue: headers.append("Gross")
+        if show_revenue_sharing: headers += ["Co %", "Hotel %", "Company Share", "Hotel Share"]
+        headers.append("Customers")
+        if show_expenses: headers.append("Expense")
+        if show_profit: headers.append("Company Net")
+        headers.append("Status")
         rows = [headers]
         for item in report.daily_rows:
-            row = [str(item.business_date), item.branch_name, _money(item.revenue)]
-            if show_revenue_sharing:
-                row += [f"{item.company_percentage}%", f"{item.hotel_percentage}%", _money(item.company_share), _money(item.hotel_share)]
-            row += [f"{item.customer_count:,}"]
-            if show_expenses:
-                row += [_money(item.allocated_expense)]
-            row += [_money(item.net_profit), item.entry_status]
+            row = [str(item.business_date), item.branch_name]
+            if show_revenue: row.append(_money(item.revenue))
+            if show_revenue_sharing: row += [f"{item.company_percentage}%", f"{item.hotel_percentage}%", _money(item.company_share), _money(item.hotel_share)]
+            row.append(f"{item.customer_count:,}")
+            if show_expenses: row.append(_money(item.allocated_expense))
+            if show_profit: row.append(_money(item.net_profit))
+            row.append(item.entry_status)
             rows.append(row)
         table = Table(rows, repeatRows=1)
-        profit_col = headers.index("Company Net")
         commands = [("BACKGROUND",(0,0),(-1,0),dark),("TEXTCOLOR",(0,0),(-1,0),colors.white),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.25,colors.grey),("FONTSIZE",(0,0),(-1,-1),6),("ALIGN",(2,1),(-2,-1),"RIGHT")]
-        for i, item in enumerate(report.daily_rows, 1):
-            if item.net_profit < 0:
-                commands += [("BACKGROUND",(profit_col,i),(profit_col,i),red),("TEXTCOLOR",(profit_col,i),(profit_col,i),colors.white)]
+        if show_profit:
+            profit_col = headers.index("Company Net")
+            for i, item in enumerate(report.daily_rows, 1):
+                if item.net_profit < 0:
+                    commands += [("BACKGROUND",(profit_col,i),(profit_col,i),red),("TEXTCOLOR",(profit_col,i),(profit_col,i),colors.white)]
         table.setStyle(TableStyle(commands))
         story += [Paragraph("Daily Details", styles["Heading2"]), table]
 
