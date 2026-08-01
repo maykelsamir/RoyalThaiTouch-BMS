@@ -20,5 +20,8 @@ class MonthlyExpenseView(BaseModel):
     month: int
     amount: Decimal
     notes: str
+    inherited: bool = False
+    source_year: int | None = None
+    source_month: int | None = None
     updated_by: int | None = None
     updated_at: datetime | None = None
